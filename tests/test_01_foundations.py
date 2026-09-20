@@ -5,14 +5,14 @@ checked via finite differences: parameters with zero numerical gradient
 would indicate a dead computational path).
 """
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import numpy as np
 import pytest
 
-ll = import_module("solutions.01_foundations.linear_logistic")
-pm = import_module("solutions.01_foundations.perceptron_mlp")
-lx = import_module("solutions.01_foundations.losses")
+ll = load("01_foundations.linear_logistic")
+pm = load("01_foundations.perceptron_mlp")
+lx = load("01_foundations.losses")
 
 RNG = np.random.default_rng(0)
 

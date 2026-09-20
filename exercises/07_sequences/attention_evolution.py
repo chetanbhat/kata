@@ -4,6 +4,7 @@ Goals: geometric ALiBi slopes; causal distance bias; window masks;
 grouped-query attention (n_kv_heads=1 is MQA) with KV-head repetition.
 
 Run: pytest tests/test_07_sequences.py -k "alibi or window or gqa or grouped"
+Reading: readings/07_sequences/attention_evolution.md
 """
 
 import torch

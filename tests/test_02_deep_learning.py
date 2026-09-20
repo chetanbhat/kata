@@ -1,14 +1,14 @@
 """Module 2 tests: autograd engine, custom layers, manual Conv2D."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn as nn
 import pytest
 
-ag = import_module("solutions.02_deep_learning.autograd")
-ly = import_module("solutions.02_deep_learning.layers")
-cv = import_module("solutions.02_deep_learning.conv2d")
+ag = load("02_deep_learning.autograd")
+ly = load("02_deep_learning.layers")
+cv = load("02_deep_learning.conv2d")
 
 Value = ag.Value
 

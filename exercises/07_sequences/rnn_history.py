@@ -4,6 +4,7 @@ Goals: tanh recurrence; z/r/n GRU gates; grad_norm_vs_time must SHOW decay
 for small recurrent weights (the 1990s wrong turn, measured not memorized).
 
 Run: pytest tests/test_07_sequences.py -k "rnn or gru or vanishing"
+Reading: readings/07_sequences/rnn_history.md
 """
 
 import torch

@@ -1,13 +1,13 @@
 """Module 06 tests: regularization zoo + WeightNorm/SpectralNorm/GP."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn.functional as F
 import pytest
 
-rg = import_module("solutions.06_regularization.regularizers")
-nm = import_module("solutions.06_regularization.normalization")
+rg = load("06_regularization.regularizers")
+nm = load("06_regularization.normalization")
 
 
 def test_dropconnect_eval_identity_and_train_scale():

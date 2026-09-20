@@ -6,6 +6,7 @@ Goals:
   - stable_sigmoid: no overflow for large |z|.
 
 Run: pytest tests/test_01_foundations.py -k "regression or ols or logistic"
+Reading: readings/01_foundations/linear_logistic.md
 """
 
 import numpy as np

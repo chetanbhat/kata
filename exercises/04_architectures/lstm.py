@@ -4,6 +4,7 @@ Goals: fused input/hidden matmuls split into f/i/o/g; forget/input/output
 sigmoids + tanh candidate; c_t, h_t updates; unrolled LSTM layer.
 
 Run: pytest tests/test_04_architectures.py -k lstm
+Reading: readings/04_architectures/lstm.md
 """
 
 import torch

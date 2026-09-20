@@ -4,6 +4,7 @@ Goals: custom init (He/Xavier), running-stat BatchNorm with train/eval
 behavior, LayerNorm over trailing dims, inverted Dropout.
 
 Run: pytest tests/test_02_deep_learning.py -k "layer or norm or dropout or linear"
+Reading: readings/02_deep_learning/layers.md
 """
 
 import torch

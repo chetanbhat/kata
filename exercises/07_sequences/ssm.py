@@ -4,6 +4,7 @@ Goals: exact ZOH discretization (A_d = e^{dt*A}, with the A->0 limit);
 input-dependent dt/B/C scan loop with a stable negative diagonal A.
 
 Run: pytest tests/test_07_sequences.py -k "ssm or discretize or selective"
+Reading: readings/07_sequences/ssm.md
 """
 
 import torch

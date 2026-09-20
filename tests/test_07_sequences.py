@@ -1,14 +1,14 @@
 """Module 07 tests: RNN history, attention variations, selective SSM."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn as nn
 import pytest
 
-rh = import_module("solutions.07_sequences.rnn_history")
-ae = import_module("solutions.07_sequences.attention_evolution")
-ss = import_module("solutions.07_sequences.ssm")
+rh = load("07_sequences.rnn_history")
+ae = load("07_sequences.attention_evolution")
+ss = load("07_sequences.ssm")
 
 
 def assert_grads_alive(module: nn.Module):

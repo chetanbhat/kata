@@ -4,6 +4,7 @@ Goals: each loss as a pure function with exact hand-checkable values;
 gradient penalty exact on a linear critic; power iteration matching SVD.
 
 Run: pytest tests/test_08_generative.py -k "gan or wgan or spectral_normalize or penalty"
+Reading: readings/08_generative/gan.md
 """
 
 import torch

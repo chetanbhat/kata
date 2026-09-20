@@ -4,6 +4,7 @@ Goals: closed-form Gaussian KL; differentiable rsample; loss = recon + beta*KL;
 10 training steps must lower the ELBO on synthetic binary data.
 
 Run: pytest tests/test_08_generative.py -k "vae or kl or reparameterize or elbo"
+Reading: readings/08_generative/vae.md
 """
 
 import torch

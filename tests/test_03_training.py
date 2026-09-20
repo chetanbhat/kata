@@ -1,14 +1,14 @@
 """Module 3 tests: hand-rolled optimizers, schedulers, training loop."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn as nn
 import pytest
 
-op = import_module("solutions.03_training_algos.optimizers")
-sc = import_module("solutions.03_training_algos.schedulers")
-tl = import_module("solutions.03_training_algos.training_loop")
+op = load("03_training_algos.optimizers")
+sc = load("03_training_algos.schedulers")
+tl = load("03_training_algos.training_loop")
 
 
 def _quadratic_run(opt_cls, opt_kwargs, steps=10, lr=0.1, seed=0):

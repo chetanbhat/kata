@@ -1,15 +1,14 @@
 """Module 08 tests: VAE, GAN losses, diffusion schedules and steps."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import pytest
 
-va = import_module("solutions.08_generative.vae")
-gn = import_module("solutions.08_generative.gan")
-df = import_module("solutions.08_generative.diffusion")
+va = load("08_generative.vae")
+gn = load("08_generative.gan")
+df = load("08_generative.diffusion")
 
 
 # --------------------------------------------------------------------- VAE
@@ -93,12 +92,13 @@ def test_discriminator_10_step_convergence():
     torch.manual_seed(0)
     disc = nn.Sequential(nn.Linear(2, 16), nn.ReLU(), nn.Linear(16, 1))
     opt = torch.optim.Adam(disc.parameters(), lr=1e-2)
-    X = torch.cat([torch.randn(20, 2) - 2, torch.randn(20, 2) + 2])
-    y = torch.cat([torch.zeros(20, 1), torch.ones(20, 1)])
+    real = torch.randn(20, 2) + 2
+    fake = torch.randn(20, 2) - 2
     losses = []
     for _ in range(10):
         opt.zero_grad()
-        loss = F.binary_cross_entropy_with_logits(disc(X), y)
+        # Train D with YOUR minimax loss on separable blobs.
+        loss = gn.gan_d_loss(disc(real).squeeze(1), disc(fake).squeeze(1))
         losses.append(float(loss.detach()))
         loss.backward()
         opt.step()

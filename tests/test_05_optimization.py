@@ -1,13 +1,13 @@
 """Module 05 tests: second-order methods, adaptive lineage, sharpness."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import pytest
 
-so = import_module("solutions.05_optimization.second_order")
-ah = import_module("solutions.05_optimization.adaptive_history")
-sh = import_module("solutions.05_optimization.sharpness")
+so = load("05_optimization.second_order")
+ah = load("05_optimization.adaptive_history")
+sh = load("05_optimization.sharpness")
 
 
 def _quadratic(Q, t):
@@ -97,8 +97,8 @@ def test_lion_first_step_is_signed():
 
 
 def test_lookahead_sync_exact():
-    from importlib import import_module as im
-    base_mod = im("solutions.03_training_algos.optimizers")
+    base_mod = ref("03_training_algos.optimizers")
+
     torch.manual_seed(0)
     w = torch.nn.Parameter(torch.tensor([4.0, 0.0]))
     target = torch.tensor([1.0, 1.0])
@@ -116,8 +116,8 @@ def test_lookahead_sync_exact():
 # ----------------------------------------------------------------- SAM/SWA
 def test_sam_ascent_then_10_step_convergence():
     torch.manual_seed(0)
-    from importlib import import_module as im
-    base_mod = im("solutions.03_training_algos.optimizers")
+    base_mod = ref("03_training_algos.optimizers")
+
     w = torch.nn.Parameter(torch.tensor([4.0, -3.0]))
     target = torch.tensor([1.0, 2.0])
     base = base_mod.SGD([w], lr=0.05)

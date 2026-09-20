@@ -4,6 +4,7 @@ Goals: exact-Hessian damped Newton step via autograd; two-loop recursion;
 Armijo backtracking L-BFGS with (s, y) curvature pairs.
 
 Run: pytest tests/test_05_optimization.py -k "newton or lbfgs"
+Reading: readings/05_optimization/second_order.md
 """
 
 import torch

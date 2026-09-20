@@ -5,6 +5,7 @@ moving average, AdamW's decoupled decay (exact: zero grad -> p *= 1-lr*wd),
 Lion's sign step, Lookahead's slow/fast sync.
 
 Run: pytest tests/test_05_optimization.py -k "adagrad or rmsprop or adamw or lion or lookahead"
+Reading: readings/05_optimization/adaptive_history.md
 """
 
 import torch

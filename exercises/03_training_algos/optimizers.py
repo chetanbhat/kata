@@ -4,6 +4,7 @@ Goals: velocity buffers; Nesterov lookahead; Adam raw moments m/v with bias
 correction m/(1-b1^t), v/(1-b2^t); torch.optim-like zero_grad/step API.
 
 Run: pytest tests/test_03_training.py -k "sgd or adam or optimizer"
+Reading: readings/03_training_algos/optimizers.md
 """
 
 import torch

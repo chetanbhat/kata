@@ -1,14 +1,14 @@
 """Module 4 tests: ResNet blocks, LSTM cell, Transformer blocks."""
 
-from importlib import import_module
+from tests.impl import load, ref
 
 import torch
 import torch.nn as nn
 import pytest
 
-rn = import_module("solutions.04_architectures.resnet")
-ls = import_module("solutions.04_architectures.lstm")
-tr = import_module("solutions.04_architectures.transformer")
+rn = load("04_architectures.resnet")
+ls = load("04_architectures.lstm")
+tr = load("04_architectures.transformer")
 
 
 def assert_grads_alive(module: nn.Module):

@@ -4,6 +4,7 @@ Goals: mini-batching, grad clipping by norm, accumulation steps, AMP hooks
 that no-op on CPU, optional scheduler stepping; return loss history.
 
 Run: pytest tests/test_03_training.py -k "train_loop or clipping or accumulation"
+Reading: readings/03_training_algos/training_loop.md
 """
 
 import torch

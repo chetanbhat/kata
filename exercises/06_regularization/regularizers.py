@@ -4,6 +4,7 @@ Goals: mask weights (not activations); drop residual branches; smoothed
 targets (eps=0 must equal plain CE); convex-combo training pairs.
 
 Run: pytest tests/test_06_regularization.py -k "dropconnect or stochastic or smoothing or mixup"
+Reading: readings/06_regularization/regularizers.md
 """
 
 import torch

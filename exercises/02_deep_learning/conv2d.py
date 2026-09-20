@@ -4,6 +4,7 @@ Goals: unfold input to patches, multiply by flattened kernels, reshape;
 support stride/padding/dilation; grads flow via torch autograd.
 
 Run: pytest tests/test_02_deep_learning.py -k conv
+Reading: readings/02_deep_learning/conv2d.md
 """
 
 import torch

@@ -4,6 +4,7 @@ Goals: SAM first_step ascends to w+eps (loss must RISE), second_step descends
 with the perturbed gradient and restores w; SWA running average is exact.
 
 Run: pytest tests/test_05_optimization.py -k "sam or swa or sharpness"
+Reading: readings/05_optimization/sharpness.md
 """
 
 import torch

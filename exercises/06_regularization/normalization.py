@@ -4,6 +4,7 @@ Goals: reparameterized row norms (||w_i|| must equal g_i exactly); power
 iteration matching SVD's top singular value; GP exact on a linear critic.
 
 Run: pytest tests/test_06_regularization.py -k "weightnorm or spectral or penalty or norm"
+Reading: readings/06_regularization/normalization.md
 """
 
 import torch

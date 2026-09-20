@@ -4,6 +4,7 @@ Goals: MSE, clipped BCE, and cross-entropy from raw logits stabilized with
 the log-sum-exp trick (subtract the row max before exponentiating).
 
 Run: pytest tests/test_01_foundations.py -k "loss or cross_entropy or bce"
+Reading: readings/01_foundations/losses.md
 """
 
 import numpy as np

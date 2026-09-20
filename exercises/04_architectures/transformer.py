@@ -4,6 +4,7 @@ Goals: scaled dot-product attention with masking; causal multi-head
 self-attention; RMSNorm; RoPE rotation; full pre-norm DecoderBlock.
 
 Run: pytest tests/test_04_architectures.py -k "attention or rope or rmsnorm or decoder"
+Reading: readings/04_architectures/transformer.md
 """
 
 import torch

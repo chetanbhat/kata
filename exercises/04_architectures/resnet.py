@@ -4,6 +4,7 @@ Goals: post-activation basic block; bottleneck reduce/expand; 1x1 projection
 shortcut on channel/stride mismatch; optional pre-activation ordering.
 
 Run: pytest tests/test_04_architectures.py -k "residual or bottleneck"
+Reading: readings/04_architectures/resnet.md
 """
 
 import torch

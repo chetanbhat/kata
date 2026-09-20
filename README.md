@@ -20,17 +20,34 @@ uv pip install --python .venv/bin/python numpy pytest matplotlib
 
 `requirements.txt` pins the same set (`torch` via the CPU index).
 
+## Learning path (start here if you're new)
+
+1. Read `guides/00_start_here.md` (the loop), then `guides/01_prereqs_math.md`.
+2. Work Modules 01 → 02 → 03 → **09 Capstone** (your first end-to-end run),
+   then 04, 07, 05, 06, 08 with `RESEARCH_LOG.md` open.
+3. The MLP stub (`exercises/01_foundations/perceptron_mlp.py`) is the
+   scaffolding exemplar: prerequisites, worked example, graduated TODOs,
+   hints. Other stubs are terse by design — use `guides/02_debugging.md`
+   when stuck (45 minutes of honest effort before reading `solutions/`).
+
 ## How to practice
 
-1. Pick an exercise, implement the `# TODO` markers in `exercises/...`.
-2. Run its test file from the table (import it the way the tests do, e.g.
-   `from importlib import import_module; m = import_module("exercises.01_foundations.losses")`
-   — the leading-digit dirs need `import_module`, not plain `import`).
-3. Compare against `solutions/...` when stuck.
+Tests evaluate **your code** by default (`exercises/`). An untouched
+checkout is red — implement the `# TODO` markers and turn it green:
 
 ```bash
-.venv/bin/python -m pytest tests/ -q            # whole suite (125 tests)
+.venv/bin/python -m pytest tests/ -q             # your code (KATA_IMPL=exercises)
 .venv/bin/python -m pytest tests/test_01_foundations.py -q
+.venv/bin/python progress.py                     # per-module PASS/FAIL table
+KATA_IMPL=solutions .venv/bin/python -m pytest tests/ -q   # reference health check
+```
+
+To poke at a stub interactively, import it the way the tests do (the
+leading-digit dirs need `import_module`, not plain `import`):
+
+```python
+from importlib import import_module
+m = import_module("exercises.01_foundations.losses")
 ```
 
 ## Tracker
@@ -51,7 +68,29 @@ uv pip install --python .venv/bin/python numpy pytest matplotlib
 | 4.3 | `exercises/04_architectures/transformer.py` | Masked SDPA; causal MHA; RMSNorm; RoPE; pre-norm decoder block | S, G, C (+causality, norm-preservation) | `pytest tests/test_04_architectures.py -k "attention or mha or rmsnorm or rope or decoder"` |
 
 `G(fd)` = finite-difference gradient probe (NumPy has no autograd).
-`tests/test_00_stubs.py` verifies every stub raises `NotImplementedError`.
+`tests/test_00_stubs.py` verifies untouched stubs raise `NotImplementedError`;
+`tests/test_impl_selector.py` pins the `KATA_IMPL` loader contract.
+
+| 9 | `exercises/09_capstone/end_to_end.py` | Two-moons end to end: splits, train-only scaling, curves, overfitting diagnosis, early stopping, checkpoint, test-once | end-to-end | `pytest tests/test_09_capstone.py -q` |
+
+## Guides
+
+| Guide | Purpose |
+|-------|---------|
+| `guides/00_start_here.md` | The red→green loop, S/G/C invariants, suggested order |
+| `guides/01_prereqs_math.md` | Numpy/broadcasting, chain rule + worked neuron, softmax/CE by hand, bias–variance |
+| `guides/02_debugging.md` | Four failure stories (shape, NaN, dead grad, flat loss) + reading curves |
+
+## Readings (`readings/`)
+
+Every section and exercise has a pre-digested note in the matching
+`readings/<section>/` folder: introduction, hierarchy placement (builds
+on → builds toward), intuition with the key math, and
+required / recommended / suggested sources with links. Each exercise stub
+header points at its note (`Reading: readings/...`). Section overviews
+(`readings/<section>/README.md`) give the module arc and section-level
+sources. All prose is rewritten originally for this repo — follow the
+links for the canonical papers, posts, and textbook chapters.
 
 ## Advanced track (Modules 5–8): history of wrong turns
 
@@ -77,13 +116,12 @@ running notes live in [RESEARCH_LOG.md](RESEARCH_LOG.md).
 
 ```text
 kata/
-├── exercises/  01_foundations  02_deep_learning  03_training_algos  04_architectures
-│               05_optimization  06_regularization  07_sequences  08_generative
+├── exercises/  01_foundations … 08_generative, 09_capstone (stubs to implement)
 ├── solutions/  (mirrors exercises, complete implementations)
-├── tests/      test_00_stubs  test_01_foundations  test_02_deep_learning
-│               test_03_training  test_04_architectures  test_05_optimization
-│               test_06_regularization  test_07_sequences  test_08_generative
-│               (+ conftest.py)
+├── tests/      test_00_stubs … test_09_capstone, test_impl_selector (+ conftest.py)
+├── guides/     00_start_here, 01_prereqs_math, 02_debugging
+├── readings/   per-section overviews + per-exercise digested notes + source links
+├── progress.py             (per-module PASS/FAIL tracker over your code)
 ├── requirements.txt
 ├── RESEARCH_LOG.md  (cumulative wrong-turns / learnings journal)
 └── README.md

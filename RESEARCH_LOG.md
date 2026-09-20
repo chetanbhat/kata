@@ -1,5 +1,13 @@
 # Research Log — wrong turns, fixes, and open questions
 
+## Meta — our own harness wrong turn (fixed)
+
+- The first test suite imported `solutions.*`, so an untouched checkout
+  reported all-green and learner code was never evaluated. Tests must run
+  against the learner's implementation by default (`KATA_IMPL=exercises`),
+  with the reference behind an explicit flag. A gym that can't see you
+  can't coach you. Pinned by `tests/test_impl_selector.py`.
+
 Cumulative journal for the advanced track (Modules 5–8). Each entry records
 what was tried historically, why it failed or sufficed, and what replaced
 it. Add dated entries as you work through the exercises.

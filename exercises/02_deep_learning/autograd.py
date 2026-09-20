@@ -4,6 +4,7 @@ Goals: dynamic graph construction; reverse-topological backward() applying
 the chain rule; ops add/mul/pow/div/relu/tanh/exp/sigmoid.
 
 Run: pytest tests/test_02_deep_learning.py -k autograd
+Reading: readings/02_deep_learning/autograd.md
 """
 
 import math

@@ -4,6 +4,7 @@ Goals: linear + cosine beta schedules; exact forward noising; epsilon-param
 reverse steps; DDIM eta=0 determinism; guidance mixing (w=0 -> uncond).
 
 Run: pytest tests/test_08_generative.py -k "diffusion or schedule or ddpm or ddim or guidance or epsilon"
+Reading: readings/08_generative/diffusion.md
 """
 
 import torch

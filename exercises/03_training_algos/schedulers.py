@@ -4,6 +4,7 @@ Goals: per-step lr computation; cycle restart with T_mult growth; linear
 warmup -> stable -> cosine decay phases.
 
 Run: pytest tests/test_03_training.py -k "scheduler or cosine or warmup"
+Reading: readings/03_training_algos/schedulers.md
 """
 
 
