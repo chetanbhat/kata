@@ -1,0 +1,119 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 8.3 — Diffusion: schedules, q_sample, DDPM/DDIM steps, CFG. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 8.3 — Diffusion: schedules, q_sample, DDPM/DDIM steps, CFG.</h1><p class="meta">Reading: <a href="../../readings/08_generative/diffusion.html">readings/08_generative/diffusion.html</a> · Suite: <code>tests/test_08_generative.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_08_generative.py -q -k &quot;diffusion or ddpm or ddim or guidance&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 8.3 — Diffusion: schedules, q_sample, DDPM/DDIM steps, CFG.
+
+Goals: linear + cosine beta schedules; exact forward noising; epsilon-param
+reverse steps; DDIM eta=0 determinism; guidance mixing (w=0 -&gt; uncond).
+
+Run: pytest tests/test_08_generative.py -k &quot;diffusion or schedule or ddpm or ddim or guidance or epsilon&quot;
+Reading: readings/08_generative/diffusion.md
+&quot;&quot;&quot;
+
+import torch
+
+
+def linear_beta_schedule(T: int, b0=1e-4, b1=0.02) -&gt; torch.Tensor:
+    # TODO: Implement this.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def cosine_beta_schedule(T: int, s=0.008) -&gt; torch.Tensor:
+    # TODO: Cosine alpha_bar -&gt; clipped betas.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def classifier_free_guidance(eps_cond, eps_uncond, w=7.5):
+    # TODO: uncond + w*(cond - uncond).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class DiffusionSchedule:
+    def __init__(self, T: int, kind: str = &quot;linear&quot;):
+        # TODO: betas/alphas/alpha_bar + sqrt tables.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def q_sample(self, x0, t, noise):
+        # TODO: sqrt_ab[t]*x0 + sqrt_1mab[t]*noise (per-sample coefs).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def ddpm_step(self, x_t, t_idx: int, eps_pred, z=None):
+        # TODO: Posterior mean from eps-param x0_hat (+ sigma*z if t &gt; 0).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def ddim_step(self, x_t, t_idx: int, prev_idx: int, eps_pred, eta=0.0):
+        # TODO: Deterministic strided step; eta &gt; 0 adds noise.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_kl_normal_closed_form</code></li><li><code>test_reparameterize_shape_and_grad_path</code></li><li><code>test_vae_beta_zero_kills_kl_and_elbo_converges</code></li><li><code>test_gan_losses_exact_and_directional</code></li><li><code>test_wgan_gp_components_exact</code></li><li><code>test_spectral_normalize_matches_svd</code></li><li><code>test_discriminator_10_step_convergence</code></li><li><code>test_beta_schedules_shapes_and_ranges</code></li><li><code>test_q_sample_exact_spot_check</code></li><li><code>test_ddpm_ddim_shapes_and_determinism</code></li><li><code>test_cfg_endpoints_and_mixing_exact</code></li><li><code>test_epsilon_predictor_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Generative history III: diffusion (DDPM 2020 -&gt; DDIM 2020 -&gt; guidance).
+
+History: score matching (2005-2011, Hyvarinen/Song) + DDPM&#x27;s epsilon
+reparameterization made likelihood-grade image models; DDIM showed the
+Markov chain was optional (deterministic, strided sampling); classifier
+guidance (2021) then classifier-FREE guidance traded a conditional and an
+unconditional prediction for prompt adherence. Cosine schedule (2021)
+fixed DDPM&#x27;s linear schedule destroying information too fast at low res.
+&quot;&quot;&quot;
+
+import math
+
+import torch
+
+
+def linear_beta_schedule(T: int, b0: float = 1e-4, b1: float = 0.02) -&gt; torch.Tensor:
+    return torch.linspace(b0, b1, T)
+
+
+def cosine_beta_schedule(T: int, s: float = 0.008) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Nichol &amp; Dhariwal cosine schedule, clipped to [1e-5, 0.999].&quot;&quot;&quot;
+    steps = torch.arange(T + 1).float()
+    ab = torch.cos(((steps / T) + s) / (1 + s) * math.pi / 2) ** 2
+    ab = ab / ab[0]
+    betas = (1.0 - ab[1:] / ab[:-1]).clamp(1e-5, 0.999)
+    return betas
+
+
+def classifier_free_guidance(eps_cond: torch.Tensor, eps_uncond: torch.Tensor,
+                             w: float = 7.5) -&gt; torch.Tensor:
+    &quot;&quot;&quot;eps_uncond + w * (eps_cond - eps_uncond); w=0 -&gt; uncond, w=1 -&gt; cond.&quot;&quot;&quot;
+    return eps_uncond + w * (eps_cond - eps_uncond)
+
+
+class DiffusionSchedule:
+    def __init__(self, T: int, kind: str = &quot;linear&quot;):
+        self.T = T
+        betas = linear_beta_schedule(T) if kind == &quot;linear&quot; else cosine_beta_schedule(T)
+        self.betas = betas
+        alphas = 1.0 - betas
+        self.alphas = alphas
+        self.alpha_bar = torch.cumprod(alphas, dim=0)
+        self.sqrt_ab = self.alpha_bar.sqrt()
+        self.sqrt_1mab = (1.0 - self.alpha_bar).sqrt()
+
+    def _coef(self, table: torch.Tensor, t: torch.Tensor, shape) -&gt; torch.Tensor:
+        return table[t].view(-1, *([1] * (len(shape) - 1)))
+
+    def q_sample(self, x0: torch.Tensor, t: torch.Tensor, noise: torch.Tensor) -&gt; torch.Tensor:
+        return self._coef(self.sqrt_ab, t, x0.shape) * x0 + \
+            self._coef(self.sqrt_1mab, t, x0.shape) * noise
+
+    def ddpm_step(self, x_t: torch.Tensor, t_idx: int, eps_pred: torch.Tensor,
+                  z: torch.Tensor | None = None) -&gt; torch.Tensor:
+        &quot;&quot;&quot;One DDPM reverse step with epsilon parameterization.&quot;&quot;&quot;
+        b = self.betas[t_idx]
+        ab, ab_prev = self.alpha_bar[t_idx], self.alpha_bar[t_idx - 1] if t_idx &gt; 0 else 1.0
+        x0_hat = (x_t - self.sqrt_1mab[t_idx] * eps_pred) / self.sqrt_ab[t_idx]
+        coef_x0 = self.sqrt_ab[t_idx - 1] * b / (1 - ab) if t_idx &gt; 0 else 1.0
+        coef_xt = self.alphas[t_idx].sqrt() * (1 - ab_prev) / (1 - ab)
+        mean = coef_x0 * x0_hat + coef_xt * x_t
+        if t_idx == 0:
+            return mean
+        sigma = (((1 - ab_prev) / (1 - ab)) * b).sqrt()
+        return mean + sigma * (torch.randn_like(x_t) if z is None else z)
+
+    def ddim_step(self, x_t: torch.Tensor, t_idx: int, prev_idx: int,
+                  eps_pred: torch.Tensor, eta: float = 0.0) -&gt; torch.Tensor:
+        &quot;&quot;&quot;Deterministic (eta=0) strided reverse step.&quot;&quot;&quot;
+        ab, ab_prev = self.alpha_bar[t_idx], self.alpha_bar[prev_idx]
+        x0_hat = (x_t - (1 - ab).sqrt() * eps_pred) / ab.sqrt()
+        sigma = eta * ((1 - ab_prev) / (1 - ab)).sqrt() * (1 - ab / ab_prev).sqrt()
+        direction = (1 - ab_prev - sigma ** 2).sqrt() * eps_pred
+        noise = sigma * torch.randn_like(x_t) if eta &gt; 0 else 0.0
+        return ab_prev.sqrt() * x0_hat + direction + noise
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

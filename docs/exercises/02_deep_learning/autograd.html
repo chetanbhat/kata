@@ -1,0 +1,183 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.1 — Mini autograd engine (scalar Value + backprop). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 2.1 — Mini autograd engine (scalar Value + backprop).</h1><p class="meta">Reading: <a href="../../readings/02_deep_learning/autograd.html">readings/02_deep_learning/autograd.html</a> · Suite: <code>tests/test_02_deep_learning.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_02_deep_learning.py -q -k &quot;autograd&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 2.1 — Mini autograd engine (scalar Value + backprop).
+
+Goals: dynamic graph construction; reverse-topological backward() applying
+the chain rule; ops add/mul/pow/div/relu/tanh/exp/sigmoid.
+
+Run: pytest tests/test_02_deep_learning.py -k autograd
+Reading: readings/02_deep_learning/autograd.md
+&quot;&quot;&quot;
+
+import math
+
+
+class Value:
+    def __init__(self, data: float, _children=(), _op: str = &quot;&quot;):
+        self.data = float(data)
+        self.grad = 0.0
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op
+
+    def _wrap(self, other):
+        # TODO: Wrap raw numbers as Value.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def __add__(self, other):
+        # TODO: Forward add + backward (grad flows unchanged to both).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def __mul__(self, other):
+        # TODO: Forward mul + backward (local grads are the swapped inputs).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def __pow__(self, power):
+        # TODO: Forward power + backward (power * x^(power-1)).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def relu(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def tanh(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def exp(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def sigmoid(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def backward(self):
+        # TODO: Topo-sort the graph, seed grad=1.0, apply _backward in reverse.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_autograd_known_gradients</code></li><li><code>test_autograd_pow_div_exp_sigmoid_relu</code></li><li><code>test_autograd_10_step_scalar_descent</code></li><li><code>test_linear_shape_and_grad</code></li><li><code>test_linear_10_step_convergence</code></li><li><code>test_batchnorm_train_eval_and_stats</code></li><li><code>test_layernorm_normalizes</code></li><li><code>test_dropout_eval_identity_and_train_shape</code></li><li><code>test_conv2d_matches_nn_conv2d_and_shape</code></li><li><code>test_conv2d_dilation_shape_and_grad</code></li><li><code>test_conv2d_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Mini scalar autograd engine (micrograd-style).
+
+Concepts: dynamic computational graph of ``Value`` nodes; backpropagation
+applies the chain rule in reverse-topological order. Supports the ops needed
+to train a small MLP: add/mul/pow/div/neg/sub/relu/tanh/exp/sigmoid.
+&quot;&quot;&quot;
+
+import math
+
+
+class Value:
+    def __init__(self, data: float, _children=(), _op: str = &quot;&quot;):
+        self.data = float(data)
+        self.grad = 0.0
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op
+
+    # -- construction helpers ------------------------------------------------
+    def _wrap(self, other):
+        return other if isinstance(other, Value) else Value(other)
+
+    # -- forward ops (each closes over its local derivatives) ----------------
+    def __add__(self, other):
+        other = self._wrap(other)
+        out = Value(self.data + other.data, (self, other), &quot;+&quot;)
+
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+
+        out._backward = _backward
+        return out
+
+    def __radd__(self, other):
+        return self + other
+
+    def __mul__(self, other):
+        other = self._wrap(other)
+        out = Value(self.data * other.data, (self, other), &quot;*&quot;)
+
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+
+        out._backward = _backward
+        return out
+
+    def __rmul__(self, other):
+        return self * other
+
+    def __pow__(self, power):
+        assert isinstance(power, (int, float)), &quot;only scalar powers supported&quot;
+        out = Value(self.data ** power, (self,), f&quot;**{power}&quot;)
+
+        def _backward():
+            self.grad += power * self.data ** (power - 1) * out.grad
+
+        out._backward = _backward
+        return out
+
+    def __neg__(self):
+        return self * -1
+
+    def __sub__(self, other):
+        return self + (-self._wrap(other))
+
+    def __truediv__(self, other):
+        return self * self._wrap(other) ** -1
+
+    def relu(self):
+        out = Value(max(0.0, self.data), (self,), &quot;ReLU&quot;)
+
+        def _backward():
+            self.grad += (out.data &gt; 0) * out.grad
+
+        out._backward = _backward
+        return out
+
+    def tanh(self):
+        t = math.tanh(self.data)
+        out = Value(t, (self,), &quot;tanh&quot;)
+
+        def _backward():
+            self.grad += (1.0 - t ** 2) * out.grad
+
+        out._backward = _backward
+        return out
+
+    def exp(self):
+        e = math.exp(self.data)
+        out = Value(e, (self,), &quot;exp&quot;)
+
+        def _backward():
+            self.grad += e * out.grad
+
+        out._backward = _backward
+        return out
+
+    def sigmoid(self):
+        s = 1.0 / (1.0 + math.exp(-self.data))
+        out = Value(s, (self,), &quot;sigmoid&quot;)
+
+        def _backward():
+            self.grad += s * (1.0 - s) * out.grad
+
+        out._backward = _backward
+        return out
+
+    # -- backprop -------------------------------------------------------------
+    def backward(self):
+        topo, visited = [], set()
+
+        def build(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build(child)
+                topo.append(v)
+
+        build(self)
+        self.grad = 1.0
+        for v in reversed(topo):
+            v._backward()
+
+    def __repr__(self):
+        return f&quot;Value(data={self.data:.4f}, grad={self.grad:.4f})&quot;
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

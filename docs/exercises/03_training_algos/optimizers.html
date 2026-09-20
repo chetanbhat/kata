@@ -1,0 +1,111 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 3.1 — Optimizers from scratch: SGD (+momentum/Nesterov), Adam. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 3.1 — Optimizers from scratch: SGD (+momentum/Nesterov), Adam.</h1><p class="meta">Reading: <a href="../../readings/03_training_algos/optimizers.html">readings/03_training_algos/optimizers.html</a> · Suite: <code>tests/test_03_training.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_03_training.py -q -k &quot;sgd or adam or zero_grad&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 3.1 — Optimizers from scratch: SGD (+momentum/Nesterov), Adam.
+
+Goals: velocity buffers; Nesterov lookahead; Adam raw moments m/v with bias
+correction m/(1-b1^t), v/(1-b2^t); torch.optim-like zero_grad/step API.
+
+Run: pytest tests/test_03_training.py -k &quot;sgd or adam or optimizer&quot;
+Reading: readings/03_training_algos/optimizers.md
+&quot;&quot;&quot;
+
+import torch
+
+
+class SGD:
+    def __init__(self, params, lr: float = 0.01, momentum: float = 0.0,
+                 nesterov: bool = False, weight_decay: float = 0.0):
+        # TODO: Store params + hyperparams; init one velocity buffer per param.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: v = mu*v + g ; p -= lr*v (Nesterov: p -= lr*(g + mu*v)).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class Adam:
+    def __init__(self, params, lr: float = 1e-3, betas=(0.9, 0.999),
+                 eps: float = 1e-8, weight_decay: float = 0.0):
+        # TODO: Store params; init m/v buffers and step counter t.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: Update biased moments, bias-correct, p -= lr*m_hat/(sqrt(v_hat)+eps).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_sgd_exact_step_and_shape_preserved</code></li><li><code>test_sgd_10_step_convergence</code></li><li><code>test_sgd_momentum_and_nesterov_converge</code></li><li><code>test_adam_bias_correction_single_step</code></li><li><code>test_adam_10_step_convergence</code></li><li><code>test_zero_grad_clears</code></li><li><code>test_cosine_warm_restarts_shape_of_schedule</code></li><li><code>test_cosine_restart_period_growth</code></li><li><code>test_warmup_stable_decay_phases</code></li><li><code>test_train_loop_10_step_convergence_with_all_mechanics</code></li><li><code>test_train_loop_clipping_bounds_grad_norm</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Optimizers from scratch: SGD (momentum / Nesterov) and Adam.
+
+Both operate on torch tensors/parameters with a torch.optim-like API:
+``zero_grad()`` clears ``.grad``; ``step()`` applies one update in
+``torch.no_grad()``. Adam tracks first/second raw moments with bias
+correction:  m_hat = m/(1-b1^t), v_hat = v/(1-b2^t).
+&quot;&quot;&quot;
+
+import torch
+
+
+class SGD:
+    def __init__(self, params, lr: float = 0.01, momentum: float = 0.0,
+                 nesterov: bool = False, weight_decay: float = 0.0):
+        self.params = list(params)
+        self.lr = float(lr)
+        self.momentum = float(momentum)
+        self.nesterov = nesterov
+        self.weight_decay = float(weight_decay)
+        self.velocities = [torch.zeros_like(p) for p in self.params]
+        if nesterov and momentum == 0.0:
+            raise ValueError(&quot;Nesterov requires momentum &gt; 0&quot;)
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        for p, v in zip(self.params, self.velocities):
+            if p.grad is None:
+                continue
+            g = p.grad + self.weight_decay * p
+            v.mul_(self.momentum).add_(g)
+            p.add_(v, alpha=-self.lr) if not self.nesterov else \
+                p.add_(g + self.momentum * v, alpha=-self.lr)
+
+
+class Adam:
+    def __init__(self, params, lr: float = 1e-3, betas=(0.9, 0.999),
+                 eps: float = 1e-8, weight_decay: float = 0.0):
+        self.params = list(params)
+        self.lr, self.eps = float(lr), float(eps)
+        self.b1, self.b2 = betas
+        self.weight_decay = float(weight_decay)
+        self.t = 0
+        self.m = [torch.zeros_like(p) for p in self.params]
+        self.v = [torch.zeros_like(p) for p in self.params]
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        self.t += 1
+        bc1 = 1.0 - self.b1 ** self.t
+        bc2 = 1.0 - self.b2 ** self.t
+        for p, m, v in zip(self.params, self.m, self.v):
+            if p.grad is None:
+                continue
+            g = p.grad + self.weight_decay * p
+            m.mul_(self.b1).add_(g, alpha=1.0 - self.b1)
+            v.mul_(self.b2).addcmul_(g, g, value=1.0 - self.b2)
+            m_hat, v_hat = m / bc1, v / bc2
+            p.addcdiv_(m_hat, v_hat.sqrt() + self.eps, value=-self.lr)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

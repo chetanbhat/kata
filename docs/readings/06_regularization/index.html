@@ -1,0 +1,53 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>06 · Regularization · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-06-regularization-normalization-history">Module 06 — Regularization &amp; Normalization History</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Training (Module 03) gets loss down; this module decides <em>which</em> low-loss
+solution you keep. Two families: noise/constraints that prevent memorization
+(dropout lineage, smoothing, Mixup) and reparameterizations that reshape the
+landscape (norm lineage from BatchNorm to spectral control).</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Module 02 (BatchNorm mechanics — now question its origin story).</li>
+<li>Module 01 (L1/L2 penalties reappear inside AdamW and label smoothing).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Module 08 (spectral norm + gradient penalty are GAN stabilization).</li>
+<li>Module 09 (regularization choices move the val curve, not the train one).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>Dropout (2012) → DropConnect → Stochastic Depth: noise climbing from
+activations to weights to whole layers. BatchNorm (2015) worked for reasons
+its paper got wrong (landscape smoothing, not covariate shift — Santurkar
+2018). GANs forced honest Lipschitz control: clipping (crude) → gradient
+penalty → spectral norm.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="regularizers.html">regularizers.md</a></td>
+<td><code>exercises/06_regularization/regularizers.py</code></td>
+<td>Noise levels, smoothing, Mixup</td>
+</tr>
+<tr>
+<td><a href="normalization.html">normalization.md</a></td>
+<td><code>exercises/06_regularization/normalization.py</code></td>
+<td>WeightNorm, SpectralNorm, WGAN-GP</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Srivastava et al., "Dropout" —
+  <a href="https://arxiv.org/abs/1207.0580">arxiv.org/abs/1207.0580</a></li>
+<li>Recommended: Santurkar et al., "How Does Batch Normalization Help
+  Optimization" — <a href="https://arxiv.org/abs/1805.11604">arxiv.org/abs/1805.11604</a></li>
+<li>Suggested: Zhang et al., "mixup" —
+  <a href="https://arxiv.org/abs/1710.09412">arxiv.org/abs/1710.09412</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

@@ -1,0 +1,75 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 8.1 — VAE: reparameterization + ELBO with a beta (annealing) knob. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 8.1 — VAE: reparameterization + ELBO with a beta (annealing) knob.</h1><p class="meta">Reading: <a href="../../readings/08_generative/vae.html">readings/08_generative/vae.html</a> · Suite: <code>tests/test_08_generative.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_08_generative.py -q -k &quot;vae or kl or elbo&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 8.1 — VAE: reparameterization + ELBO with a beta (annealing) knob.
+
+Goals: closed-form Gaussian KL; differentiable rsample; loss = recon + beta*KL;
+10 training steps must lower the ELBO on synthetic binary data.
+
+Run: pytest tests/test_08_generative.py -k &quot;vae or kl or reparameterize or elbo&quot;
+Reading: readings/08_generative/vae.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def kl_normal(mu: torch.Tensor, logvar: torch.Tensor) -&gt; torch.Tensor:
+    # TODO: -0.5*sum(1 + lv - mu^2 - e^lv) per sample.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def reparameterize(mu: torch.Tensor, logvar: torch.Tensor) -&gt; torch.Tensor:
+    # TODO: mu + eps * exp(0.5*logvar), eps ~ N(0, I).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class VAE(nn.Module):
+    def __init__(self, x_dim: int, h_dim: int = 64, z_dim: int = 8):
+        super().__init__()
+        # TODO: Encoder MLP -&gt; mu/logvar heads; decoder MLP to logits.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def elbo(self, x: torch.Tensor, beta: float = 1.0) -&gt; dict:
+        # TODO: Return {&#x27;loss&#x27;, &#x27;recon&#x27;, &#x27;kl&#x27;}; loss = recon + beta*kl.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_kl_normal_closed_form</code></li><li><code>test_reparameterize_shape_and_grad_path</code></li><li><code>test_vae_beta_zero_kills_kl_and_elbo_converges</code></li><li><code>test_gan_losses_exact_and_directional</code></li><li><code>test_wgan_gp_components_exact</code></li><li><code>test_spectral_normalize_matches_svd</code></li><li><code>test_discriminator_10_step_convergence</code></li><li><code>test_beta_schedules_shapes_and_ranges</code></li><li><code>test_q_sample_exact_spot_check</code></li><li><code>test_ddpm_ddim_shapes_and_determinism</code></li><li><code>test_cfg_endpoints_and_mixing_exact</code></li><li><code>test_epsilon_predictor_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Generative history I: VAEs (2013) -- reparameterization + ELBO.
+
+History: exact posterior inference is intractable -&gt; maximize the ELBO with
+the reparameterization trick (Kingma &amp; Welling; Rezende et al., 2013).
+The famous wrong turn: POSTERIOR COLLAPSE -- with a powerful decoder the KL
+term goes to zero and z is ignored (Bowman et al. 2016). Remedies explored
+since: KL annealing (beta-VAE schedules), free bits, lagging inference.
+The `beta` knob below is exactly that annealing handle.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+def kl_normal(mu: torch.Tensor, logvar: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;KL(N(mu, sigma) || N(0, I)) per sample: -0.5*sum(1+lv-mu^2-e^lv).&quot;&quot;&quot;
+    return -0.5 * (1.0 + logvar - mu.pow(2) - logvar.exp()).sum(dim=-1)
+
+
+def reparameterize(mu: torch.Tensor, logvar: torch.Tensor) -&gt; torch.Tensor:
+    return mu + torch.randn_like(logvar) * (0.5 * logvar).exp()
+
+
+class VAE(nn.Module):
+    def __init__(self, x_dim: int, h_dim: int = 64, z_dim: int = 8):
+        super().__init__()
+        self.enc = nn.Sequential(nn.Linear(x_dim, h_dim), nn.ReLU())
+        self.to_mu = nn.Linear(h_dim, z_dim)
+        self.to_logvar = nn.Linear(h_dim, z_dim)
+        self.dec = nn.Sequential(nn.Linear(z_dim, h_dim), nn.ReLU(),
+                                 nn.Linear(h_dim, x_dim))  # Bernoulli logits
+
+    def elbo(self, x: torch.Tensor, beta: float = 1.0) -&gt; dict:
+        h = self.enc(x)
+        mu, logvar = self.to_mu(h), self.to_logvar(h)
+        z = reparameterize(mu, logvar)
+        recon = F.binary_cross_entropy_with_logits(self.dec(z), x, reduction=&quot;none&quot;)
+        recon = recon.sum(dim=-1).mean()
+        kl = kl_normal(mu, logvar).mean()
+        loss = recon + beta * kl
+        return {&quot;loss&quot;: loss, &quot;recon&quot;: recon.detach(), &quot;kl&quot;: kl.detach()}
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

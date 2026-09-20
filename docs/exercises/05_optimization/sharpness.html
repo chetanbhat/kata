@@ -1,0 +1,108 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.3 — SAM (perturb-then-update) and SWA (iterate averaging). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 5.3 — SAM (perturb-then-update) and SWA (iterate averaging).</h1><p class="meta">Reading: <a href="../../readings/05_optimization/sharpness.html">readings/05_optimization/sharpness.html</a> · Suite: <code>tests/test_05_optimization.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_05_optimization.py -q -k &quot;sam or swa&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 5.3 — SAM (perturb-then-update) and SWA (iterate averaging).
+
+Goals: SAM first_step ascends to w+eps (loss must RISE), second_step descends
+with the perturbed gradient and restores w; SWA running average is exact.
+
+Run: pytest tests/test_05_optimization.py -k &quot;sam or swa or sharpness&quot;
+Reading: readings/05_optimization/sharpness.md
+&quot;&quot;&quot;
+
+import torch
+
+
+class SAM:
+    def __init__(self, base_optimizer, params, rho: float = 0.05):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def first_step(self):
+        # TODO: p += rho * g / ||g|| (store eps per param).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def second_step(self):
+        # TODO: base opt step with perturbed grads, then subtract stored eps.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class SWA:
+    def __init__(self, params):
+        # TODO: Average buffers + counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def update(self):
+        # TODO: avg += (p - avg) / n.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def copy_to(self, params):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_damped_newton_one_step_quadratic</code></li><li><code>test_lbfgs_direction_empty_history_is_steepest</code></li><li><code>test_lbfgs_10_step_ill_conditioned_convergence</code></li><li><code>test_adaptive_10_step_convergence</code></li><li><code>test_adamw_decoupled_decay_exact</code></li><li><code>test_lion_first_step_is_signed</code></li><li><code>test_lookahead_sync_exact</code></li><li><code>test_sam_ascent_then_10_step_convergence</code></li><li><code>test_swa_average_exact</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Sharpness-aware minimization (SAM) and stochastic weight averaging (SWA).
+
+History: flat minima generalize better (Hochreiter &amp; Schmidhuber 1997, Keskar
+2017 large-batch sharpness). SAM (2020) minimizes the worst-case loss in a
+rho-ball via a two-step perturb-then-update; SWA (2017) averages SGD iterates
+to land in flat basins. Both are cheap add-ons to any base optimizer.
+&quot;&quot;&quot;
+
+import torch
+
+
+class SAM:
+    &quot;&quot;&quot;Wraps a base optimizer over the same params.
+
+    Protocol per step: loss.backward(); first_step()  (ascend to w+eps);
+    zero_grad(); loss_perturbed.backward(); second_step() (descend, restore w).
+    &quot;&quot;&quot;
+
+    def __init__(self, base_optimizer, params, rho: float = 0.05):
+        self.opt = base_optimizer
+        self.params = list(params)
+        self.rho = float(rho)
+        self._eps: dict = {}
+
+    def zero_grad(self):
+        self.opt.zero_grad()
+
+    @torch.no_grad()
+    def first_step(self):
+        norm = torch.sqrt(sum((p.grad ** 2).sum() for p in self.params if p.grad is not None))
+        scale = self.rho / (norm + 1e-12)
+        for p in self.params:
+            if p.grad is None:
+                continue
+            e = p.grad * scale
+            self._eps[id(p)] = e
+            p.add_(e)
+
+    @torch.no_grad()
+    def second_step(self):
+        self.opt.step()  # steps with the perturbed-point gradient
+        for p in self.params:
+            if id(p) in self._eps:
+                p.sub_(self._eps[id(p)])
+        self._eps = {}
+
+
+class SWA:
+    &quot;&quot;&quot;Running average of parameters: avg += (p - avg) / n.&quot;&quot;&quot;
+
+    def __init__(self, params):
+        self.params = list(params)
+        self.avg = [p.detach().clone() for p in self.params]
+        self.n = 0
+
+    @torch.no_grad()
+    def update(self):
+        self.n += 1
+        for a, p in zip(self.avg, self.params):
+            a.add_(p - a, alpha=1.0 / self.n)
+
+    @torch.no_grad()
+    def copy_to(self, params):
+        for p, a in zip(params, self.avg):
+            p.copy_(a)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

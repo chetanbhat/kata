@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 6.2 — WeightNorm, SpectralNorm, Gradient Penalty. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="62-weightnorm-spectralnorm-gradient-penalty">6.2 — WeightNorm, SpectralNorm, Gradient Penalty</h1>
+<p><strong>Builds on:</strong> 2.2 (BatchNorm mechanics — now the <em>story</em> gets questioned).
+<strong>Builds toward:</strong> 8.2 (these are GAN stabilizers), Module 09 (norm choices
+change trainability, not just accuracy).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Three answers to "control the function's scale." <strong>WeightNorm</strong> (2016)
+reparameterizes each row <code>w = g·v/‖v‖</code>: learn norm (<code>g</code>) and direction
+(<code>v</code>) separately — the test's exact <code>‖wᵢ‖ = gᵢ</code> pins the decoupling, and
+optimization speeds up because length/angle stop fighting. <strong>SpectralNorm</strong>
+(2018) divides by the top singular value (power iteration on buffer <code>u</code>),
+enforcing 1-Lipschitz layers — born for GAN discriminators, now standard
+wherever sensitivity must be bounded. <strong>Gradient penalty</strong> (WGAN-GP, 2017)
+enforces Lipschitz <em>where it matters</em>: random interpolations between real
+and fake, penalizing <code>(‖∇C‖₂−1)²</code>. And the history lesson: BatchNorm's
+"internal covariate shift" explanation didn't survive scrutiny (Santurkar
+2018: it smooths the landscape) — keep techniques, distrust first stories.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Power iteration converges to the top singular pair geometrically
+  (rate = ratio of top two singular values); a few steps per forward pass
+  suffices because <code>u</code> persists across steps (warm-started).</li>
+<li>A linear critic <code>C(x) = Σx</code> has gradient norm <code>√d</code> everywhere → GP equals
+  <code>(√d−1)²</code> exactly (the test's hand-check at <code>d=4</code> gives 1.0).</li>
+<li>WGAN's weight <em>clipping</em> also enforced Lipschitz — crudely, crippling
+  capacity. Penalty &gt; constraint is a recurring upgrade pattern.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Track σ(W) during training with and without spectral norm: unconstrained,
+it drifts; constrained, the layer's Lipschitz constant stays 1 while
+directions stay free. Scale control without capacity loss is the whole game.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Ioffe &amp; Szegedy, "Batch Normalization" —
+  <a href="https://arxiv.org/abs/1502.03167">arxiv.org/abs/1502.03167</a></li>
+<li>Recommended: Santurkar et al., "How Does Batch Normalization Help
+  Optimization" — <a href="https://arxiv.org/abs/1805.11604">arxiv.org/abs/1805.11604</a></li>
+<li>Suggested: Miyato et al., "Spectral Normalization for GANs" —
+  <a href="https://arxiv.org/abs/1802.05957">arxiv.org/abs/1802.05957</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/06_regularization/normalization.html">exercises/06_regularization/normalization.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

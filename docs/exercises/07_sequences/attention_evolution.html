@@ -1,0 +1,101 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 7.2 — Attention variations: ALiBi, sliding window, GQA/MQA. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 7.2 — Attention variations: ALiBi, sliding window, GQA/MQA.</h1><p class="meta">Reading: <a href="../../readings/07_sequences/attention_evolution.html">readings/07_sequences/attention_evolution.html</a> · Suite: <code>tests/test_07_sequences.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_07_sequences.py -q -k &quot;alibi or window or gqa&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 7.2 — Attention variations: ALiBi, sliding window, GQA/MQA.
+
+Goals: geometric ALiBi slopes; causal distance bias; window masks;
+grouped-query attention (n_kv_heads=1 is MQA) with KV-head repetition.
+
+Run: pytest tests/test_07_sequences.py -k &quot;alibi or window or gqa or grouped&quot;
+Reading: readings/07_sequences/attention_evolution.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def alibi_slopes(n_heads: int) -&gt; torch.Tensor:
+    # TODO: 2^(-8/n * i) for i = 1..n.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def alibi_bias(seq_len: int, slopes: torch.Tensor) -&gt; torch.Tensor:
+    # TODO: (H, T, T) bias -slope*(i-j) for j&lt;=i, -inf above diagonal.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def sliding_window_mask(seq_len: int, window: int) -&gt; torch.Tensor:
+    # TODO: (T, T) bool: j&lt;=i and i-j &lt;= window.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class GroupedQueryAttention(nn.Module):
+    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int = 1):
+        super().__init__()
+        # TODO: q/kv/o projections (KV heads &lt; Q heads).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x, causal=True, attn_bias=None):
+        # TODO: Split heads, repeat KV heads, attend, merge, project.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_elman_and_gru_shapes_and_grads</code></li><li><code>test_vanishing_gradient_measured_not_memorized</code></li><li><code>test_gru_10_step_convergence</code></li><li><code>test_alibi_slopes_and_bias_shapes</code></li><li><code>test_sliding_window_mask_exact</code></li><li><code>test_gqa_shapes_and_grads</code></li><li><code>test_gqa_causal_no_future_leak</code></li><li><code>test_gqa_10_step_convergence</code></li><li><code>test_discretize_diag_exact_and_zero_limit</code></li><li><code>test_selective_scan_shape_grad_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Sequence history II: attention after &quot;Attention Is All You Need&quot;.
+
+Variations practitioners must know: absolute sinusoidal positions (2017) -&gt;
+relative biases/T5 (2019) -&gt; RoPE (2021, in module 04) -&gt; ALiBi (2022,
+zero-shot length extrapolation by penalizing distance); full MHA -&gt; MQA
+(2019, one KV head) -&gt; GQA (2023, groups) for KV-cache-bound inference;
+sliding-window attention (Mistral 2023) for linear-ish long context.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def alibi_slopes(n_heads: int) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Geometric slopes 2^(-8/n * i), i = 1..n (Press et al. 2022).&quot;&quot;&quot;
+    return torch.pow(2.0, -8.0 / n_heads * torch.arange(1, n_heads + 1).float())
+
+
+def alibi_bias(seq_len: int, slopes: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;(H, T, T) bias: -slope*(i-j) for j&lt;=i, -inf above diagonal.&quot;&quot;&quot;
+    pos = torch.arange(seq_len)
+    dist = (pos[None, :] - pos[:, None]).clamp_min(0)  # (T, T)
+    bias = -slopes[:, None, None] * dist[None]
+    causal = torch.tril(torch.ones(seq_len, seq_len, dtype=torch.bool))
+    return torch.where(causal[None], bias, torch.tensor(float(&quot;-inf&quot;)))
+
+
+def sliding_window_mask(seq_len: int, window: int) -&gt; torch.Tensor:
+    &quot;&quot;&quot;(T, T) bool: attend to j&lt;=i with i-j &lt;= window.&quot;&quot;&quot;
+    pos = torch.arange(seq_len)
+    return ((pos[:, None] - pos[None, :]).clamp_min(0) &lt;= window) &amp; torch.tril(
+        torch.ones(seq_len, seq_len, dtype=torch.bool))
+
+
+class GroupedQueryAttention(nn.Module):
+    &quot;&quot;&quot;Q heads = n_heads, KV heads = n_kv_heads (1 = MQA).&quot;&quot;&quot;
+
+    def __init__(self, d_model: int, n_heads: int, n_kv_heads: int = 1):
+        super().__init__()
+        assert d_model % n_heads == 0 and n_heads % n_kv_heads == 0
+        self.n_heads, self.n_kv = n_heads, n_kv_heads
+        self.d_head = d_model // n_heads
+        self.q_proj = nn.Linear(d_model, d_model, bias=False)
+        self.k_proj = nn.Linear(d_model, n_kv_heads * self.d_head, bias=False)
+        self.v_proj = nn.Linear(d_model, n_kv_heads * self.d_head, bias=False)
+        self.o_proj = nn.Linear(d_model, d_model, bias=False)
+
+    def forward(self, x: torch.Tensor, causal: bool = True,
+                attn_bias: torch.Tensor | None = None) -&gt; torch.Tensor:
+        B, T, _ = x.shape
+        q = self.q_proj(x).view(B, T, self.n_heads, self.d_head).transpose(1, 2)
+        k = self.k_proj(x).view(B, T, self.n_kv, self.d_head).transpose(1, 2)
+        v = self.v_proj(x).view(B, T, self.n_kv, self.d_head).transpose(1, 2)
+        rep = self.n_heads // self.n_kv
+        k = k.repeat_interleave(rep, dim=1)
+        v = v.repeat_interleave(rep, dim=1)
+        scores = q @ k.transpose(-2, -1) / (self.d_head ** 0.5)
+        if attn_bias is not None:
+            scores = scores + attn_bias
+        if causal:
+            mask = torch.tril(torch.ones(T, T, dtype=torch.bool, device=x.device))
+            scores = scores.masked_fill(~mask, float(&quot;-inf&quot;))
+        return self.o_proj((torch.softmax(scores, -1) @ v).transpose(1, 2).reshape(B, T, -1))
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

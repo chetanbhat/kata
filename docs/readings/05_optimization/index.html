@@ -1,0 +1,60 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>05 · Optimization · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-05-optimization-history-second-order-methods">Module 05 — Optimization History &amp; Second-Order Methods</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Module 03 taught the working defaults; this module asks <em>why they are the
+defaults</em> by walking the graveyard: full Newton (correct, unaffordable),
+AdaGrad (elegant, self-strangling), coupled Adam (subtly wrong). Plus the
+modern add-ons that buy generalization: flatness-seeking (SAM) and
+iterate-averaging (SWA).</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Module 03 (SGD/Adam mechanics — now compare their failure modes).</li>
+<li>Module 01 (quadratics as the laboratory: exact Newton in one step).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Research taste: optimizer papers are mostly "one assumption relaxed" —
+  after this module you can read new ones critically (see Lion notes).</li>
+<li>Module 09 (you will <em>feel</em> Adam vs SGD on learning curves).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>Second-order methods ruled small problems but never scaled (O(n³) solves,
+indefinite Hessians) → quasi-Newton kept the idea alive for batch settings
+→ stochastic first-order won deep learning → adaptive methods fixed scaling
+→ AdamW fixed Adam's regularization bug → sign-based Lion questioned the
+whole edifice. Pendulum, not ladder.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="second_order.html">second_order.md</a></td>
+<td><code>exercises/05_optimization/second_order.py</code></td>
+<td>Newton, damping, L-BFGS two-loop</td>
+</tr>
+<tr>
+<td><a href="adaptive_history.html">adaptive_history.md</a></td>
+<td><code>exercises/05_optimization/adaptive_history.py</code></td>
+<td>AdaGrad→RMSprop→AdamW→Lion→Lookahead</td>
+</tr>
+<tr>
+<td><a href="sharpness.html">sharpness.md</a></td>
+<td><code>exercises/05_optimization/sharpness.py</code></td>
+<td>Flat minima: SAM perturb, SWA average</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Nocedal &amp; Wright, <em>Numerical Optimization</em>, Ch. 3, 6–7 (the
+  canon; any library copy).</li>
+<li>Recommended: Martens, "Deep learning via Hessian-free optimization" —
+  <a href="https://arxiv.org/abs/1004.1630">arxiv.org/abs/1004.1630</a></li>
+<li>Suggested: Foret et al., "Sharpness-Aware Minimization" —
+  <a href="https://arxiv.org/abs/2010.01412">arxiv.org/abs/2010.01412</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

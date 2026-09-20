@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 7.3 — Diagonal SSM discretization + Mamba-lite selective scan. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 7.3 — Diagonal SSM discretization + Mamba-lite selective scan.</h1><p class="meta">Reading: <a href="../../readings/07_sequences/ssm.html">readings/07_sequences/ssm.html</a> · Suite: <code>tests/test_07_sequences.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_07_sequences.py -q -k &quot;ssm or discretize&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 7.3 — Diagonal SSM discretization + Mamba-lite selective scan.
+
+Goals: exact ZOH discretization (A_d = e^{dt*A}, with the A-&gt;0 limit);
+input-dependent dt/B/C scan loop with a stable negative diagonal A.
+
+Run: pytest tests/test_07_sequences.py -k &quot;ssm or discretize or selective&quot;
+Reading: readings/07_sequences/ssm.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def discretize_diag(A: torch.Tensor, B: torch.Tensor, dt: torch.Tensor):
+    # TODO: Return (A_d, B_d); handle |A| &lt; 1e-8 via the dt*B limit.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class SelectiveScan(nn.Module):
+    def __init__(self, d_model: int, d_state: int = 8):
+        super().__init__()
+        # TODO: A_log (positive -&gt; A negative), dt/B/C projections, D skip.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Per-step dt=softplus, Bt, Ct; h = A_d*h + B_d*u; y = h.C + D*u.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_elman_and_gru_shapes_and_grads</code></li><li><code>test_vanishing_gradient_measured_not_memorized</code></li><li><code>test_gru_10_step_convergence</code></li><li><code>test_alibi_slopes_and_bias_shapes</code></li><li><code>test_sliding_window_mask_exact</code></li><li><code>test_gqa_shapes_and_grads</code></li><li><code>test_gqa_causal_no_future_leak</code></li><li><code>test_gqa_10_step_convergence</code></li><li><code>test_discretize_diag_exact_and_zero_limit</code></li><li><code>test_selective_scan_shape_grad_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Sequence history III: state-space models (S4 -&gt; Mamba).
+
+History: attention&#x27;s O(T^2) wall revived SSMs -- S4 (2022) discretizes a
+continuous linear system (A, B, C) with HiPPO init for long-range memory;
+Mamba (2023) makes the scan SELECTIVE (dt, B, C depend on input) while
+keeping linear time. Here: exact ZOH discretization of a diagonal system +
+a Mamba-lite selective scan loop.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def discretize_diag(A: torch.Tensor, B: torch.Tensor, dt: torch.Tensor):
+    &quot;&quot;&quot;ZOH discretization of diagonal dA/dt system: A_d = e^{dt*A}.
+
+    Returns (A_d, B_d) with B_d = (A_d - 1)/A * B (limit dt*B as A -&gt; 0).
+    All elementwise; A, B, dt broadcastable to the same shape.
+    &quot;&quot;&quot;
+    A_d = torch.exp(dt * A)
+    B_d = torch.where(A.abs() &lt; 1e-8, dt * B, (A_d - 1.0) / A * B)
+    return A_d, B_d
+
+
+class SelectiveScan(nn.Module):
+    &quot;&quot;&quot;Mamba-lite: per-step dt/B/C from input; scan h = A_d*h + B_d*u.&quot;&quot;&quot;
+
+    def __init__(self, d_model: int, d_state: int = 8):
+        super().__init__()
+        self.d_model, self.d_state = d_model, d_state
+        self.A_log = nn.Parameter(torch.log(torch.rand(d_model) * 15.0 + 1.0))
+        self.W_dt = nn.Parameter(torch.empty(d_model, d_model))
+        self.b_dt = nn.Parameter(torch.zeros(d_model))
+        self.W_B = nn.Parameter(torch.empty(d_state, d_model))
+        self.W_C = nn.Parameter(torch.empty(d_state, d_model))
+        self.D = nn.Parameter(torch.ones(d_model))
+        nn.init.xavier_uniform_(self.W_dt)
+        nn.init.xavier_uniform_(self.W_B)
+        nn.init.xavier_uniform_(self.W_C)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        B, T, D = x.shape
+        N = self.d_state
+        A = -torch.exp(self.A_log)  # (D,) negative diagonal: stable
+        h = torch.zeros(B, D, N, device=x.device, dtype=x.dtype)
+        outs = []
+        for t in range(T):
+            u = x[:, t]                                          # (B, D)
+            dt = torch.nn.functional.softplus(u @ self.W_dt.t() + self.b_dt)  # (B, D)+
+            Bt = u @ self.W_B.t()                                # (B, N)
+            Ct = u @ self.W_C.t()                                # (B, N)
+            A_d, B_d = discretize_diag(A[None, :, None],
+                                       Bt[:, None, :] * torch.ones(1, D, 1, device=x.device),
+                                       dt[:, :, None])
+            h = h * A_d + u[:, :, None] * B_d
+            outs.append((h * Ct[:, None, :]).sum(-1) + self.D * u)
+        return torch.stack(outs, dim=1)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

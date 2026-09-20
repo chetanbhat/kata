@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.1 — Damped Newton + L-BFGS from scratch. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="51-damped-newton-l-bfgs">5.1 — Damped Newton &amp; L-BFGS</h1>
+<p><strong>Builds on:</strong> 1.1 (quadratics: Newton solves them in one step), 2.1
+(Hessian via nested autograd). <strong>Builds toward:</strong> 5.2 (why first-order won
+anyway), research literacy for second-order papers (K-FAC, Shampoo).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Newton's method multiplies the gradient by the <em>inverse Hessian</em> — optimal
+step for quadratics, one-step convergence in the exercise. Two problems
+killed it for deep learning: (1) O(n³) solves at millions of parameters,
+(2) indefinite Hessians (saddle directions get <em>maximized</em>). Damping
+(<code>H + λI</code>) fixes (2) locally — Levenberg–Marquardt thinking. L-BFGS fixes
+(1) <em>approximately</em>: never form H, just keep recent <code>(s, y)</code> curvature
+pairs and replay them through the two-loop recursion, with Armijo
+backtracking guaranteeing sufficient decrease. Empty history = steepest
+descent — the algorithm degrades gracefully, a design virtue worth copying.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Newton step: <code>Δ = −(H+λI)⁻¹g</code>. On <code>½(w−t)'Q(w−t)</code>, one step lands within
+  damping error of <code>t</code> (test asserts <code>&lt; 1e-4</code>).</li>
+<li>Two-loop recursion applies an implicit inverse-Hessian approximation in
+  O(m·n) for memory m — read it as "steepest descent, bent by experience."</li>
+<li>Curvature condition <code>y's &gt; 0</code> guards positive-definiteness; skip the
+  update otherwise (non-convex landscapes violate it routinely).</li>
+<li>Armijo: accept step <code>t</code> if <code>f ≤ f₀ + c₁·t·g'd</code>. Theory in one line.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>L-BFGS on a κ=100 quadratic must crush gradient descent's zigzag — watch
+the loss hit <code>1e-4</code> in 10 steps where SGD would need hundreds. That gap is
+the entire historical argument for curvature, and its irrelevance at batch
+scale is the argument against.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Nocedal &amp; Wright, <em>Numerical Optimization</em>, Ch. 3 (line
+  search), 6–7 (Newton, quasi-Newton) — the canon; library copy.</li>
+<li>Recommended: Martens, "Deep learning via Hessian-free optimization" —
+  <a href="https://arxiv.org/abs/1004.1630">arxiv.org/abs/1004.1630</a></li>
+<li>Suggested: Martens &amp; Grosse, "Kronecker-factored Approximate Curvature"
+  — <a href="https://arxiv.org/abs/1503.05671">arxiv.org/abs/1503.05671</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/05_optimization/second_order.html">exercises/05_optimization/second_order.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

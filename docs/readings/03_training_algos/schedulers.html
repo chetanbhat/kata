@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 3.2 — LR schedulers: cosine warm restarts, warmup-stable-decay. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="32-lr-schedulers-cosine-restarts-warmup-stable-decay">3.2 — LR Schedulers (Cosine Restarts, Warmup-Stable-Decay)</h1>
+<p><strong>Builds on:</strong> 3.1 (the <code>lr</code> these schedules drive). <strong>Builds toward:</strong>
+5.3 (flat basins love restarts + averaging), Module 09 (curves respond to
+schedule shape).</p>
+<h2 id="introduction">Introduction</h2>
+<p>A constant lr is a compromise: too big to settle, too small to travel.
+Cosine annealing decays smoothly to <code>η_min</code>; <em>restarts</em> snap back to base
+lr, letting the run escape sharp basins (each cycle can land somewhere
+flatter — snapshot ensembling exploits exactly this). <code>T_mult</code> grows
+successive cycles (explore early, refine late). Warmup-Stable-Decay is the
+LLM-era answer: linearly ramp from 0 (early gradients are noisy and large
+— starting at full lr can kill a run on step one), hold steady, then cosine
+down. The test pins each phase's shape: rising, flat, falling.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Cosine: <code>η_min + ½(base−η_min)(1+cos(π·T_cur/T_i))</code>. At <code>T_cur=0</code> you get
+  base; at <code>T_cur=T_i</code> you get <code>η_min</code>. Restart = reset <code>T_cur</code>.</li>
+<li>Warmup is <em>linear</em> <code>base·(t+1)/warmup</code> — gentle enough to survive
+  initialization transients, short enough not to waste budget.</li>
+<li>The schedule is a pure function of step count (no gradients involved) —
+  implement it standalone, then <code>attach()</code> it to an optimizer.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Plot your schedule before training (10 lines of matplotlib). If the curve
+doesn't look like the description — monotone decay within a cycle, jump at
+restart — the bug is in cycle bookkeeping (<code>T_mult</code> growth is the usual
+suspect), not in training.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Loshchilov &amp; Hutter, "SGDR: Stochastic Gradient Descent with
+  Warm Restarts" — <a href="https://arxiv.org/abs/1608.03983">arxiv.org/abs/1608.03983</a></li>
+<li>Recommended: Goyal et al., "Accurate, Large Minibatch SGD" (warmup for
+  large batches) — <a href="https://arxiv.org/abs/1706.02677">arxiv.org/abs/1706.02677</a></li>
+<li>Suggested: Smith, "Cyclical Learning Rates" —
+  <a href="https://arxiv.org/abs/1506.01186">arxiv.org/abs/1506.01186</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/03_training_algos/schedulers.html">exercises/03_training_algos/schedulers.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

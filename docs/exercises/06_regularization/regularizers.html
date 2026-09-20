@@ -1,0 +1,85 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 6.1 — Regularization zoo: DropConnect, Stochastic Depth, LS, Mixup. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 6.1 — Regularization zoo: DropConnect, Stochastic Depth, LS, Mixup.</h1><p class="meta">Reading: <a href="../../readings/06_regularization/regularizers.html">readings/06_regularization/regularizers.html</a> · Suite: <code>tests/test_06_regularization.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_06_regularization.py -q -k &quot;dropconnect or stochastic or smoothing or mixup&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 6.1 — Regularization zoo: DropConnect, Stochastic Depth, LS, Mixup.
+
+Goals: mask weights (not activations); drop residual branches; smoothed
+targets (eps=0 must equal plain CE); convex-combo training pairs.
+
+Run: pytest tests/test_06_regularization.py -k &quot;dropconnect or stochastic or smoothing or mixup&quot;
+Reading: readings/06_regularization/regularizers.md
+&quot;&quot;&quot;
+
+import torch
+
+
+def dropconnect(weight: torch.Tensor, p: float, training: bool) -&gt; torch.Tensor:
+    # TODO: Inverted-scaled weight mask; identity when not training.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def stochastic_depth(x: torch.Tensor, fx: torch.Tensor, p: float, training: bool):
+    # TODO: x + Bernoulli(survival)/survival * Fx; x + Fx at eval.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def label_smoothing_loss(logits: torch.Tensor, targets: torch.Tensor, eps: float = 0.1):
+    # TODO: (1-eps)*NLL + eps*mean(-log_softmax), averaged.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def mixup_data(x: torch.Tensor, y: torch.Tensor, lam: float):
+    # TODO: Return (lam*x + (1-lam)*x_shuffled, y, y_shuffled, lam).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def mixup_criterion(criterion, pred: torch.Tensor, y_a, y_b, lam: float):
+    # TODO: lam*crit(pred, y_a) + (1-lam)*crit(pred, y_b).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_dropconnect_eval_identity_and_train_scale</code></li><li><code>test_stochastic_depth_eval_and_shapes</code></li><li><code>test_label_smoothing_matches_ce_at_zero</code></li><li><code>test_mixup_endpoints_shapes_and_grad</code></li><li><code>test_weightnorm_row_norms_exact_and_convergence</code></li><li><code>test_spectral_norm_matches_svd</code></li><li><code>test_gradient_penalty_exact_on_linear_critic</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Regularization zoo: DropConnect, Stochastic Depth, Label Smoothing, Mixup.
+
+History: dropout (2012/14) -&gt; DropConnect (2013, mask weights not activations)
+-&gt; Stochastic Depth (2016, drop whole residual branches in very deep nets) -&gt;
+label smoothing (2016, Inception-v3: penalize overconfidence) -&gt; Mixup (2017,
+train on convex combos; breaks the i.i.d. dogma and works).
+&quot;&quot;&quot;
+
+import torch
+import torch.nn.functional as F
+
+
+def dropconnect(weight: torch.Tensor, p: float, training: bool) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Mask the WEIGHT matrix (inverted scaling); identity when not training.&quot;&quot;&quot;
+    if not training or p == 0.0:
+        return weight
+    mask = (torch.rand_like(weight) &gt; p).to(weight.dtype) / (1.0 - p)
+    return weight * mask
+
+
+def stochastic_depth(x: torch.Tensor, fx: torch.Tensor, p: float, training: bool) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Drop the residual branch with prob p: x + Bernoulli(survival)/survival * Fx.&quot;&quot;&quot;
+    if not training or p == 0.0:
+        return x + fx
+    survival = 1.0 - p
+    mask = (torch.rand(x.shape[0], *([1] * (x.dim() - 1)), device=x.device) &lt; survival)
+    return x + mask.to(x.dtype) * fx / survival
+
+
+def label_smoothing_loss(logits: torch.Tensor, targets: torch.Tensor, eps: float = 0.1) -&gt; torch.Tensor:
+    &quot;&quot;&quot;CE against smoothed targets: (1-eps) on truth + eps/K elsewhere.&quot;&quot;&quot;
+    log_p = F.log_softmax(logits, dim=-1)
+    nll = -log_p.gather(1, targets.view(-1, 1)).squeeze(1)
+    smooth = -log_p.mean(dim=-1)
+    return ((1.0 - eps) * nll + eps * smooth).mean()
+
+
+def mixup_data(x: torch.Tensor, y: torch.Tensor, lam: float):
+    &quot;&quot;&quot;Convex combo with a shuffled copy; returns (mixed_x, y_a, y_b, lam).&quot;&quot;&quot;
+    idx = torch.randperm(x.shape[0])
+    return lam * x + (1.0 - lam) * x[idx], y, y[idx], lam
+
+
+def mixup_criterion(criterion, pred: torch.Tensor, y_a, y_b, lam: float) -&gt; torch.Tensor:
+    return lam * criterion(pred, y_a) + (1.0 - lam) * criterion(pred, y_b)
+
+
+def sample_mixup_lambda(alpha: float = 1.0) -&gt; float:
+    return float(torch.distributions.Beta(alpha, alpha).sample())
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

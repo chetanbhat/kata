@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.3 — SAM (perturb-then-update) and SWA (iterate averaging). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="53-sam-swa-seeking-flat-minima">5.3 — SAM &amp; SWA (Seeking Flat Minima)</h1>
+<p><strong>Builds on:</strong> 3.1/5.2 (both wrap a base optimizer), guides/01 §4
+(bias–variance: flatness is the mechanism). <strong>Builds toward:</strong> Module 09
+(checkpoint <em>selection</em> by val is SWA's poor cousin).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Large-batch training found sharp minima that generalize poorly (Keskar
+2017) — same train loss, worse test. Two responses. <strong>SAM</strong> (2020):
+minimize the <em>worst</em> loss in a ρ-ball around w — ascend to <code>w+ε</code>
+(<code>ε = ρ·g/‖g‖</code>), compute gradients <em>there</em>, step, restore. Costs 2× grads,
+buys flatter basins. The ascent check in the tests (<code>first_step</code> must
+<em>raise</em> the loss) is the implementation's honesty pledge. <strong>SWA</strong> (2017):
+average SGD iterates — the mean of a basin's rim sits in its flat middle.
+Nearly free, surprisingly strong, and the conceptual parent of model soups
+and EMA teacher models.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>SAM's ε is the steepest-ascent direction <em>normalized</em>: fixed radius ρ,
+  adaptive direction. ρ too big optimizes paranoia; ~0.05 is the folk default.</li>
+<li>SWA's running average <code>avg += (p−avg)/n</code> needs a cyclical or high
+  constant lr to <em>collect diverse</em> rim points — averaging one trajectory's
+  tail does little.</li>
+<li>Flatness ↔ generalization is empirical, not theorem — know the evidence
+  (Keskar) and the skeptics (reparameterization can sharpen any minimum
+  without changing the function).</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>On a 1-D double-well loss, SAM's perturbation pushes iterates out of the
+sharp well; SWA averages two rim points into the flat one's interior. Draw
+it — both methods are geometric before they're algebraic.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Foret et al., "Sharpness-Aware Minimization" —
+  <a href="https://arxiv.org/abs/2010.01412">arxiv.org/abs/2010.01412</a></li>
+<li>Recommended: Izmailov et al., "Averaging Weights Leads to Wider Optima
+  (SWA)" — <a href="https://arxiv.org/abs/1803.05407">arxiv.org/abs/1803.05407</a></li>
+<li>Suggested: Keskar et al., "On Large-Batch Training" (the motivating
+  observation) — <a href="https://arxiv.org/abs/1611.03530">arxiv.org/abs/1611.03530</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/05_optimization/sharpness.html">exercises/05_optimization/sharpness.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.2 — Adaptive lineage: AdaGrad / RMSprop / AdamW / Lion / Lookahead. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="52-adaptive-lineage-adagrad-rmsprop-adamw-lion-lookahead">5.2 — Adaptive Lineage (AdaGrad → RMSprop → AdamW → Lion → Lookahead)</h1>
+<p><strong>Builds on:</strong> 3.1 (SGD/Adam mechanics). <strong>Builds toward:</strong> 5.3 (flatness
+add-ons wrap these), Module 09 (you compare them on curves).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Each optimizer here fixes one predecessor's sin. <strong>AdaGrad</strong> (2011):
+per-coordinate scaling by all past squared grads — elegant, but the
+denominator grows forever and learning halts on long runs. <strong>RMSprop</strong>
+(Hinton, unpublished lecture): replace the sum with an exponential moving
+average — non-stationary allowed. <strong>Adam</strong> (2014): add momentum + bias
+correction — the default that ate the world. <strong>AdamW</strong> (2017): Adam's dirty
+secret was folding weight decay <em>into</em> the adaptive denominator (no longer
+L2); decoupling restores honest regularization — the zero-grad exact test
+(<code>p ×= 1−lr·wd</code>) is the whole paper in one line. <strong>Lion</strong> (2023):
+evolution-discovered sign updates match AdamW with less memory — the design
+space isn't closed. <strong>Lookahead</strong> (2019): slow/fast weights around <em>any</em>
+optimizer — exploration with a leash.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>AdaGrad's effective lr decays <code>~1/√t</code> <em>per coordinate, monotonically</em> —
+  plot it once and you'll never trust unbounded accumulation again.</li>
+<li>Adam's bias correction matters most at <code>t &lt; 100</code>; most "Adam diverges
+  early" stories are correction bugs or missing warmup (Module 3.2).</li>
+<li>Lion's first step from zero momentum is exactly <code>−lr·sign(g)</code> (test) —
+  the <code>β₁</code> interpolation only matters once memory accumulates.</li>
+<li>Lookahead sync (<code>slow += α(fast−slow)</code> every k) is SWA's cousin (5.3).</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Run all four adaptive methods on the same quadratic and plot trajectories:
+AdaGrad stalls, RMSprop/Adam converge, AdamW with wd≠0 converges <em>to a
+different point</em> (shrinkage). Same loss, different minima — optimizers are
+implicit regularizers.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Kingma &amp; Ba, "Adam" —
+  <a href="https://arxiv.org/abs/1412.6980">arxiv.org/abs/1412.6980</a></li>
+<li>Recommended: Loshchilov &amp; Hutter, "Decoupled Weight Decay (AdamW)" —
+  <a href="https://arxiv.org/abs/1711.05101">arxiv.org/abs/1711.05101</a></li>
+<li>Suggested: Reddi et al., "On the Convergence of Adam and Beyond"
+  (when Adam provably fails) —
+  <a href="https://arxiv.org/abs/1804.05571">arxiv.org/abs/1804.05571</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/05_optimization/adaptive_history.html">exercises/05_optimization/adaptive_history.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

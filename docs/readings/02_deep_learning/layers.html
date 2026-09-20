@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.2 — Custom layers: Linear, BatchNorm1d, LayerNorm, Dropout. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="22-custom-layers-linear-batchnorm-layernorm-dropout">2.2 — Custom Layers: Linear, BatchNorm, LayerNorm, Dropout</h1>
+<p><strong>Builds on:</strong> 1.2 (activations, init scale), 1.3 (stability habits).
+<strong>Builds toward:</strong> 4.x (these compose into ResNet/LSTM/Transformer), 6.2
+(normalization history re-examines BatchNorm).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Four primitives, four lessons. <strong>Linear + init</strong>: random weights must
+preserve activation variance across depth or signals die/explode — He
+(<code>√(2/n)</code>, for ReLU's halved variance) and Xavier (<code>√(1/n)</code>, symmetric
+activations) are variance bookkeeping, not magic. <strong>BatchNorm</strong>: normalize
+by batch statistics in train mode, frozen running stats in eval — the
+train/eval asymmetry is its #1 beginner trap (and why eval uses different
+code paths). <strong>LayerNorm</strong>: normalize over features, not batch — batch-size
+independent, hence the Transformer default. <strong>Dropout</strong>: inverted scaling
+(<code>÷(1−p)</code> in train) keeps expectations matched so eval is the identity.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Variance propagation: <code>Var(Wx) = fan_in·Var(w)·Var(x)</code> ⇒ set
+  <code>Var(w) = 1/fan_in</code> (Xavier) or <code>2/fan_in</code> (He, ReLU kills half).</li>
+<li>BatchNorm: <code>γ·(x−μ_B)/√(σ²_B+ε) + β</code>, with running <code>μ, σ²</code> updated by
+  momentum — learnable affine (<code>γ, β</code>) restores representational power.</li>
+<li>LayerNorm output has exactly mean 0 / variance 1 per row at init (the
+  test asserts this) — then affine shifts it.</li>
+<li>Inverted dropout preserves the <em>mean</em> activation (test: mean ≈ 1 over
+  20k draws), which is why no eval-time rescaling is needed.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Train a Linear layer and watch running stats move (BatchNorm) vs stay
+(layer norms have no running stats). If eval accuracy craters while train
+is fine, suspect the running stats (tiny batches) — Module 09's version of
+this is forgetting <code>model.eval()</code>.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: He et al., "Delving Deep into Rectifiers" (He init) —
+  <a href="https://arxiv.org/abs/1502.01852">arxiv.org/abs/1502.01852</a></li>
+<li>Recommended: Ba et al., "Layer Normalization" —
+  <a href="https://arxiv.org/abs/1607.06450">arxiv.org/abs/1607.06450</a></li>
+<li>Suggested: Srivastava et al., "Dropout" (arxiv version) —
+  <a href="https://arxiv.org/abs/1207.0580">arxiv.org/abs/1207.0580</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/02_deep_learning/layers.html">exercises/02_deep_learning/layers.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

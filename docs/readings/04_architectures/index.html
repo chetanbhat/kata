@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>04 · Architectures · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-04-architectures-modern-blocks">Module 04 — Architectures &amp; Modern Blocks</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Parts (Module 02) + training (Module 03) → complete organisms. Three
+lineages in one module: depth for vision (residual paths), memory for
+sequences (gating), and content-based routing (attention). The Transformer
+block at the end is the atom of everything built after 2017.</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Module 02 (conv, norms, linear layers compose directly into these blocks).</li>
+<li>Module 01 (gates are just sigmoids; attention scores are softmax).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Module 07 (attention variations: ALiBi, GQA, sliding windows; RNN→SSM).</li>
+<li>Module 08 (diffusion models are trained Transformer/UNet backbones).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>Depth stalled at ~20 layers (vanishing gradients) until Highway (2015) and
+ResNet (2015) made depth a <em>choice</em>; sequences went Elman → LSTM (1997) →
+seq2seq → "throw away recurrence" (Transformer, 2017). Common thread:
+<em>architectural bypasses</em> (skip connections, cell highways, attention) beat
+fighting optimization head-on.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="resnet.html">resnet.md</a></td>
+<td><code>exercises/04_architectures/resnet.py</code></td>
+<td>Why adding identity paths unlocks depth</td>
+</tr>
+<tr>
+<td><a href="lstm.html">lstm.md</a></td>
+<td><code>exercises/04_architectures/lstm.py</code></td>
+<td>How gates protect a gradient highway</td>
+</tr>
+<tr>
+<td><a href="transformer.html">transformer.md</a></td>
+<td><code>exercises/04_architectures/transformer.py</code></td>
+<td>Attention, RoPE, and the GPT block</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Vaswani et al., "Attention Is All You Need" —
+  <a href="https://arxiv.org/abs/1706.03762">arxiv.org/abs/1706.03762</a></li>
+<li>Recommended: He et al., "Deep Residual Learning" —
+  <a href="https://arxiv.org/abs/1512.03385">arxiv.org/abs/1512.03385</a></li>
+<li>Suggested: Alammar, "The Illustrated Transformer" —
+  <a href="https://jalammar.github.io/illustrated-transformer/">jalammar.github.io/illustrated-transformer</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

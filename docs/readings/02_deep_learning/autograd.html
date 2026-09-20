@@ -1,0 +1,37 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.1 — Mini autograd engine (scalar Value + backprop). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="21-mini-autograd-engine-value-backward">2.1 — Mini-Autograd Engine (<code>Value</code> + <code>.backward()</code>)</h1>
+<p><strong>Builds on:</strong> 1.2 (you hand-derived these backward passes; now systematize
+them). <strong>Builds toward:</strong> everything in PyTorch — <code>loss.backward()</code> stops
+being magic; Module 5's Hessian construction reuses the graph idea.</p>
+<h2 id="introduction">Introduction</h2>
+<p>An autograd engine does two things: (1) <em>record</em> every op into a graph
+while running forward, (2) <em>replay</em> local derivatives in reverse
+topological order, multiplying by the chain rule. Each <code>Value</code> carries
+<code>data</code>, <code>grad</code>, children, and a <code>_backward</code> closure capturing its local
+derivative (e.g. for <code>mul</code>: <code>self.grad += other.data × out.grad</code>).
+Seeding the output with <code>grad = 1</code> and walking backwards <em>is</em>
+backpropagation — Module 1.2's algebra, mechanized.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Reverse-mode AD computes the full gradient in <em>one</em> backward pass for
+  scalar outputs — why it's unbeatable for ML (many params, one loss).
+  Forward-mode would need one pass <em>per parameter</em>.</li>
+<li>Topological order guarantees children accumulate before parents consume;
+  forgetting it double-counts shared subgraphs (the classic first bug).</li>
+<li>Each op's <code>_backward</code> is just its partial derivatives: <code>add</code> copies,
+  <code>mul</code> swaps, <code>pow</code> brings down the exponent, <code>tanh</code> gives <code>1−t²</code>.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Build <code>(a·b + c).tanh()</code> with <code>a=2, b=−3, c=10</code> (the test's graph): forward
+<code>4 → tanh(4)</code>; backward, <code>c</code>'s grad must equal <code>a</code>'s grad divided by <code>b</code>'s
+data. If your numbers disagree, print every node's grad — the faulty op is
+the first one whose grad is wrong walking back from the output.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Karpathy, micrograd README + <code>engine.py</code> (the reference this
+  exercise mirrors) —
+  <a href="https://github.com/karpathy/micrograd">github.com/karpathy/micrograd</a></li>
+<li>Recommended: Goodfellow et al., <em>Deep Learning</em>, §6.5 (backprop as
+  reverse-mode AD) — <a href="https://www.deeplearningbook.org">deeplearningbook.org</a></li>
+<li>Suggested: Baydin et al., "Automatic Differentiation in Machine
+  Learning: a Survey" — <a href="https://arxiv.org/abs/1502.05767">arxiv.org/abs/1502.05767</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/02_deep_learning/autograd.html">exercises/02_deep_learning/autograd.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

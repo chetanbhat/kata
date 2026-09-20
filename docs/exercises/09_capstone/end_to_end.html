@@ -1,0 +1,223 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 9 — Capstone: two-moons classification end to end. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 9 — Capstone: two-moons classification end to end.</h1><p class="meta">Reading: <a href="../../readings/09_capstone/end_to_end.html">readings/09_capstone/end_to_end.html</a> · Suite: <code>tests/test_09_capstone.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_09_capstone.py -q</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 9 — Capstone: two-moons classification end to end.
+
+The whole job, in order (see guides/00_start_here.md + Module 09 tests):
+  1. make_moons: two noisy half-circles, labels 0/1.
+  2. train_val_test_split: shuffled, disjoint, covering; return index maps.
+  3. StandardScaler: fit on TRAIN ONLY (leakage lesson); guard zero variance.
+  4. make_mlp + train_model: full-batch Adam, val monitoring, early
+     stopping with best-restore, optional checkpoint save.
+  5. plot_curves + run_experiment: pick width by VAL, evaluate test ONCE.
+
+Run: pytest tests/test_09_capstone.py -q  (your code by default)
+Reading: readings/09_capstone/end_to_end.md
+&quot;&quot;&quot;
+
+import numpy as np
+import torch
+import torch.nn as nn
+
+
+def make_moons(n: int = 400, noise: float = 0.1, seed: int = 0):
+    # TODO: Outer arc (cos, sin), inner arc (1-cos, 1-sin-0.5) + noise.
+    # Return X (n,2) float32, y (n,) int64.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def train_val_test_split(X, y, train_frac=0.7, val_frac=0.15, seed=0):
+    # TODO: rng.permutation split; return (splits, idx) with idx disjoint.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class StandardScaler:
+    # TODO: fit stores mean_/scale_ (1.0 where variance is 0); transform applies.
+    def fit(self, X):
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def transform(self, X):
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
+
+
+def make_mlp(hidden: int = 32, dropout: float = 0.0, seed: int = 0) -&gt; nn.Module:
+    # TODO: 2 -&gt; hidden -&gt; ReLU -&gt; Dropout -&gt; 1 logit; seed the init.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def train_model(model, Xtr, ytr, Xva, yva, epochs=200, lr=1e-2, patience=20,
+                seed=0, ckpt_path=None) -&gt; dict:
+    # TODO: Adam + BCEWithLogits; per-epoch train/val loss+acc; early-stop on
+    # val loss, restore best, save checkpoint; return history dict.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def plot_curves(history: dict, path: str):
+    # TODO: Two-panel PNG (log-y losses, accuracies); return path.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def run_experiment(hidden_sizes=(8, 32, 128), n=400, noise=0.12, seed=0,
+                   out_prefix=&quot;/tmp/kata_capstone&quot;):
+    # TODO: For each width: scale -&gt; train -&gt; checkpoint+plot -&gt; test acc ONCE.
+    # Return {&quot;best_hidden&quot;, &quot;test_acc&quot;, &quot;all&quot;} picked by val acc.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_split_sizes_disjoint_and_covering</code></li><li><code>test_scaler_fit_on_train_only_and_constant_guard</code></li><li><code>test_training_shape_grad_convergence_and_early_stopping</code></li><li><code>test_overfitting_gap_is_diagnosable</code></li><li><code>test_checkpoint_reload_reproduces_and_plot_exists</code></li><li><code>test_experiment_picks_by_val_and_tests_once</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Capstone 09 — your first end-to-end run (the missing experience).
+
+Unlike Modules 1–8 (one formula at a time), here you do the whole job:
+generate data -&gt; stratified-ish shuffle split -&gt; fit preprocessing on TRAIN
+only (leakage lesson) -&gt; train with validation monitoring -&gt; diagnose the
+curves -&gt; early-stop + checkpoint the best -&gt; evaluate ONCE on test.
+
+Prereqs: guides/00, guides/01 §4 (bias–variance), Module 2 layers.
+&quot;&quot;&quot;
+
+import matplotlib
+
+matplotlib.use(&quot;Agg&quot;)
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+
+
+def make_moons(n: int = 400, noise: float = 0.1, seed: int = 0):
+    &quot;&quot;&quot;Two interleaving half-circles. Returns X (n,2) float32, y (n,) int64.&quot;&quot;&quot;
+    rng = np.random.default_rng(seed)
+    n_out, n_in = n // 2, n - n // 2
+    t = np.linspace(0, np.pi, n_out)
+    outer = np.stack([np.cos(t), np.sin(t)], axis=1)
+    t = np.linspace(0, np.pi, n_in)
+    inner = np.stack([1.0 - np.cos(t), 1.0 - np.sin(t) - 0.5], axis=1)
+    X = np.concatenate([outer, inner], axis=0) + rng.normal(0, noise, size=(n, 2))
+    y = np.concatenate([np.zeros(n_out), np.ones(n_in)]).astype(np.int64)
+    return X.astype(np.float32), y
+
+
+def train_val_test_split(X, y, train_frac=0.7, val_frac=0.15, seed=0):
+    &quot;&quot;&quot;Shuffled split. Returns (splits, idx): splits[name] = (X, y),
+    idx[name] = row indices (disjoint, covering all rows).&quot;&quot;&quot;
+    rng = np.random.default_rng(seed)
+    n = X.shape[0]
+    perm = rng.permutation(n)
+    n_train, n_val = int(n * train_frac), int(n * val_frac)
+    bounds = {&quot;train&quot;: (0, n_train), &quot;val&quot;: (n_train, n_train + n_val),
+              &quot;test&quot;: (n_train + n_val, n)}
+    splits, idx = {}, {}
+    for name, (a, b) in bounds.items():
+        idx[name] = perm[a:b]
+        splits[name] = (X[idx[name]], y[idx[name]])
+    return splits, idx
+
+
+class StandardScaler:
+    &quot;&quot;&quot;Fit mean/std on TRAIN ONLY; reusing them everywhere else is the point.&quot;&quot;&quot;
+
+    def fit(self, X):
+        X = np.asarray(X, dtype=float)
+        self.mean_ = X.mean(axis=0)
+        self.scale_ = X.std(axis=0)
+        self.scale_[self.scale_ == 0] = 1.0  # constant-column guard
+        return self
+
+    def transform(self, X):
+        out = (np.asarray(X, dtype=float) - self.mean_) / self.scale_
+        return out.astype(np.float32)  # keep the pipeline in float32
+
+    def fit_transform(self, X):
+        return self.fit(X).transform(X)
+
+
+def make_mlp(hidden: int = 32, dropout: float = 0.0, seed: int = 0) -&gt; nn.Module:
+    torch.manual_seed(seed)
+    return nn.Sequential(
+        nn.Linear(2, hidden), nn.ReLU(), nn.Dropout(dropout),
+        nn.Linear(hidden, 1),  # single logit; use BCEWithLogitsLoss
+    )
+
+
+def _acc(logits: torch.Tensor, y: torch.Tensor) -&gt; float:
+    return float(((logits.squeeze(1) &gt;= 0).long() == y).float().mean())
+
+
+def train_model(model, Xtr, ytr, Xva, yva, epochs=200, lr=1e-2, patience=20,
+                seed=0, ckpt_path=None) -&gt; dict:
+    &quot;&quot;&quot;Full-batch Adam + early stopping on val loss (restore + save best).&quot;&quot;&quot;
+    torch.manual_seed(seed)
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fn = nn.BCEWithLogitsLoss()
+    Xtr = torch.as_tensor(np.asarray(Xtr, dtype=np.float32))
+    ytr = torch.as_tensor(np.asarray(ytr, dtype=np.int64))
+    Xva = torch.as_tensor(np.asarray(Xva, dtype=np.float32))
+    yva = torch.as_tensor(np.asarray(yva, dtype=np.int64))
+    hist = {&quot;train_loss&quot;: [], &quot;val_loss&quot;: [], &quot;train_acc&quot;: [], &quot;val_acc&quot;: []}
+    best, best_state, bad = float(&quot;inf&quot;), None, 0
+    for epoch in range(epochs):
+        model.train()
+        opt.zero_grad()
+        loss = loss_fn(model(Xtr).squeeze(1), ytr.float())
+        loss.backward()
+        opt.step()
+        model.eval()
+        with torch.no_grad():
+            tl, vl = float(loss), float(loss_fn(model(Xva).squeeze(1), yva.float()))
+            ta, va = _acc(model(Xtr), ytr), _acc(model(Xva), yva)
+        for k, v in ((&quot;train_loss&quot;, tl), (&quot;val_loss&quot;, vl),
+                     (&quot;train_acc&quot;, ta), (&quot;val_acc&quot;, va)):
+            hist[k].append(v)
+        if vl &lt; best - 1e-9:
+            best, best_state, bad = vl, {k: v.cpu().clone() for k, v in model.state_dict().items()}, 0
+        else:
+            bad += 1
+            if bad &gt;= patience:
+                break
+    hist[&quot;best_epoch&quot;], hist[&quot;epochs_run&quot;] = int(np.argmin(hist[&quot;val_loss&quot;])), len(hist[&quot;val_loss&quot;])
+    model.load_state_dict(best_state)
+    if ckpt_path is not None:
+        torch.save(best_state, ckpt_path)
+    return hist
+
+
+def plot_curves(history: dict, path: str):
+    &quot;&quot;&quot;Two-panel PNG: losses (log-y) + accuracies.&quot;&quot;&quot;
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4))
+    ax[0].plot(history[&quot;train_loss&quot;], label=&quot;train&quot;)
+    ax[0].plot(history[&quot;val_loss&quot;], label=&quot;val&quot;)
+    ax[0].set_yscale(&quot;log&quot;)
+    ax[0].set_title(&quot;loss&quot;)
+    ax[0].legend()
+    ax[1].plot(history[&quot;train_acc&quot;], label=&quot;train&quot;)
+    ax[1].plot(history[&quot;val_acc&quot;], label=&quot;val&quot;)
+    ax[1].set_title(&quot;accuracy&quot;)
+    ax[1].legend()
+    fig.tight_layout()
+    fig.savefig(path)
+    plt.close(fig)
+    return path
+
+
+def run_experiment(hidden_sizes=(8, 32, 128), n=400, noise=0.12, seed=0,
+                   out_prefix=&quot;/tmp/kata_capstone&quot;):
+    &quot;&quot;&quot;Train one MLP per width, pick by val acc, evaluate test ONCE.&quot;&quot;&quot;
+    X, y = make_moons(n=n, noise=noise, seed=seed)
+    splits, _ = train_val_test_split(X, y, seed=seed)
+    scaler = StandardScaler().fit(splits[&quot;train&quot;][0])
+    std = {k: (scaler.transform(Xk), yk) for k, (Xk, yk) in splits.items()}
+    results, best = {}, None
+    for h in hidden_sizes:
+        model = make_mlp(hidden=h, seed=seed)
+        ckpt = f&quot;{out_prefix}_h{h}.pt&quot;
+        hist = train_model(model, *std[&quot;train&quot;], *std[&quot;val&quot;],
+                           epochs=200, patience=20, seed=seed, ckpt_path=ckpt)
+        plot_curves(hist, f&quot;{out_prefix}_h{h}.png&quot;)
+        model.eval()
+        with torch.no_grad():
+            Xt = torch.as_tensor(std[&quot;test&quot;][0])
+            yt = torch.as_tensor(std[&quot;test&quot;][1])
+            test_acc = _acc(model(Xt), yt)
+        results[h] = {&quot;val_acc&quot;: max(hist[&quot;val_acc&quot;]), &quot;test_acc&quot;: test_acc,
+                      &quot;epochs_run&quot;: hist[&quot;epochs_run&quot;]}
+        if best is None or results[h][&quot;val_acc&quot;] &gt; results[best][&quot;val_acc&quot;]:
+            best = h
+    return {&quot;best_hidden&quot;: best, &quot;test_acc&quot;: results[best][&quot;test_acc&quot;], &quot;all&quot;: results}
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

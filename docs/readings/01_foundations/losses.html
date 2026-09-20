@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.3 — Loss functions &amp; numerical stability (NumPy). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="13-losses-numerical-stability">1.3 — Losses &amp; Numerical Stability</h1>
+<p><strong>Builds on:</strong> 1.1 (BCE inside logistic GD), guides/01 §3 (softmax by hand).
+<strong>Builds toward:</strong> every module after this — these three functions are the
+objectives of Modules 3, 5, 8, and 09.</p>
+<h2 id="introduction">Introduction</h2>
+<p>A loss function is a <em>contract</em>: MSE says errors cost quadratically (and
+punishes outliers brutally); BCE says "match these probabilities";
+cross-entropy from logits says "put mass on the right class." The exercise
+looks trivial and isn't: naive implementations overflow (<code>e^1000</code>), underflow
+(<code>log 0</code>), or silently average over the wrong axis. The log-sum-exp trick —
+subtract the row max before exponentiating — is the single most reused
+numerical idiom in deep learning (it reappears in attention, Module 4).</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li><code>softmax(z)_i = e^(z_i−m)/Σe^(z_j−m)</code>, <code>m = max(z)</code>: identical math,
+  finite floats. Always stabilize <em>before</em> exponentiating.</li>
+<li><code>CE = −log p_true</code>; gradient w.r.t. logits is <code>p − one_hot</code> (sums to 0 —
+  classes compete; guides/01 §3 worked example).</li>
+<li>BCE needs clipped probabilities <code>[ε, 1−ε]</code>; logits-based BCE
+  (<code>BCEWithLogitsLoss</code>) fuses sigmoid+loss for the same stability reason.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Logits <code>[1000, 1001]</code>: your code must return a finite ~0.31 for class 1.
+If it returns <code>nan</code>, you exponentiated before shifting. The stability tests
+are exactly these adversarial inputs.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Goodfellow et al., <em>Deep Learning</em>, §5.5–5.6 (likelihood losses)
+  — <a href="https://www.deeplearningbook.org">deeplearningbook.org</a></li>
+<li>Recommended: PyTorch <code>CrossEntropyLoss</code> docs (fused, weighted, ignore_index
+  semantics you'll meet in Module 09) —
+  <a href="https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html">pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html</a></li>
+<li>Suggested: Blanchard et al., "Log-sum-exp trick" references in
+  Murphy, <em>Probabilistic ML</em> §2 (any library copy).</li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/01_foundations/losses.html">exercises/01_foundations/losses.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

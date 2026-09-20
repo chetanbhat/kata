@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>08 · Generative · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-08-generative-modeling-history-vae-gan-diffusion">Module 08 — Generative Modeling History (VAE → GAN → Diffusion)</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Discriminative training (Modules 01–07) learns boundaries; generative
+modeling learns the distribution itself — harder, weirder, and the source
+of every modern foundation model. Three paradigms, three pathologies:
+VAEs ignore their latents, GANs collapse and saturate, diffusions cost
+hundreds of steps (then DDIM removes most of them).</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Module 01 (cross-entropy, KL, the Gaussian facts in guides/01 §5).</li>
+<li>Module 04/07 (the backbones these losses train).</li>
+<li>Module 06 (spectral norm, gradient penalty stabilize the GAN).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Reading any modern generative paper: they all speak ELBO / minimax /
+  score-matching dialects of the same ideas.</li>
+<li>Research taste: each paradigm won by fixing the previous one's <em>training
+  dynamics</em>, not its <em>expressivity</em>.</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>Autoencoders → VAE (2013, principled latents + collapse) → GAN (2014,
+spectacular samples + minimax pathologies) → WGAN-GP/SN (honest distances)
+→ score matching + DDPM (2020, stable likelihood training) → DDIM/CFG
+(fast, steerable sampling). The field converged on diffusion the way it
+converged on Adam: stability wins.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="vae.html">vae.md</a></td>
+<td><code>exercises/08_generative/vae.py</code></td>
+<td>ELBO, reparameterization, collapse</td>
+</tr>
+<tr>
+<td><a href="gan.html">gan.md</a></td>
+<td><code>exercises/08_generative/gan.py</code></td>
+<td>Minimax vs non-saturating, WGAN-GP, SN</td>
+</tr>
+<tr>
+<td><a href="diffusion.html">diffusion.md</a></td>
+<td><code>exercises/08_generative/diffusion.py</code></td>
+<td>Schedules, DDPM/DDIM steps, guidance</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Kingma &amp; Welling, "Auto-Encoding Variational Bayes" —
+  <a href="https://arxiv.org/abs/1312.6114">arxiv.org/abs/1312.6114</a></li>
+<li>Recommended: Ho et al., "Denoising Diffusion Probabilistic Models" —
+  <a href="https://arxiv.org/abs/2006.11239">arxiv.org/abs/2006.11239</a></li>
+<li>Suggested: Goodfellow et al., "Generative Adversarial Nets" —
+  <a href="https://arxiv.org/abs/1406.2661">arxiv.org/abs/1406.2661</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

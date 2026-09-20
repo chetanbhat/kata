@@ -1,0 +1,121 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 3.2 — LR schedulers: cosine warm restarts, warmup-stable-decay. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 3.2 — LR schedulers: cosine warm restarts, warmup-stable-decay.</h1><p class="meta">Reading: <a href="../../readings/03_training_algos/schedulers.html">readings/03_training_algos/schedulers.html</a> · Suite: <code>tests/test_03_training.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_03_training.py -q -k &quot;cosine or warmup&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 3.2 — LR schedulers: cosine warm restarts, warmup-stable-decay.
+
+Goals: per-step lr computation; cycle restart with T_mult growth; linear
+warmup -&gt; stable -&gt; cosine decay phases.
+
+Run: pytest tests/test_03_training.py -k &quot;scheduler or cosine or warmup&quot;
+Reading: readings/03_training_algos/schedulers.md
+&quot;&quot;&quot;
+
+
+class CosineAnnealingWarmRestarts:
+    &quot;&quot;&quot;eta_min + 0.5*(base-eta_min)*(1+cos(pi*T_cur/T_i)); restart per cycle.&quot;&quot;&quot;
+
+    def __init__(self, base_lr: float, T_0: int, T_mult: int = 1, eta_min: float = 0.0):
+        # TODO: Store schedule config + step counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def get_lr(self) -&gt; float:
+        # TODO: Find the current cycle, return the cosine-interpolated lr.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self) -&gt; float:
+        # TODO: Return get_lr(), then advance the counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class WarmupStableDecay:
+    &quot;&quot;&quot;Linear warmup -&gt; constant -&gt; cosine decay to min_lr.&quot;&quot;&quot;
+
+    def __init__(self, base_lr: float, warmup_steps: int, stable_steps: int,
+                 decay_steps: int, min_lr: float = 0.0):
+        # TODO: Store schedule config + step counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def get_lr(self) -&gt; float:
+        # TODO: Piecewise lr by phase.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self) -&gt; float:
+        # TODO: Return get_lr(), then advance the counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_sgd_exact_step_and_shape_preserved</code></li><li><code>test_sgd_10_step_convergence</code></li><li><code>test_sgd_momentum_and_nesterov_converge</code></li><li><code>test_adam_bias_correction_single_step</code></li><li><code>test_adam_10_step_convergence</code></li><li><code>test_zero_grad_clears</code></li><li><code>test_cosine_warm_restarts_shape_of_schedule</code></li><li><code>test_cosine_restart_period_growth</code></li><li><code>test_warmup_stable_decay_phases</code></li><li><code>test_train_loop_10_step_convergence_with_all_mechanics</code></li><li><code>test_train_loop_clipping_bounds_grad_norm</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Learning-rate schedulers as step-counted schedules.
+
+Both schedulers expose ``step() -&gt; float`` (advance one step, return the new
+lr) and ``get_lr()``. Call ``attach(optimizer)`` to also write the lr into a
+torch-style optimizer&#x27;s ``param_groups`` on every step.
+&quot;&quot;&quot;
+
+import math
+
+
+class _Schedule:
+    def __init__(self, base_lr: float):
+        self.base_lr = float(base_lr)
+        self.step_count = 0
+
+    def get_lr(self) -&gt; float:  # pragma: no cover - overridden
+        raise NotImplementedError
+
+    def attach(self, optimizer) -&gt; &quot;._Schedule&quot;:
+        self._optimizer = optimizer
+        return self
+
+    def _push(self, lr: float) -&gt; float:
+        if hasattr(self, &quot;_optimizer&quot;):
+            for group in self._optimizer.param_groups:
+                group[&quot;lr&quot;] = lr
+        return lr
+
+
+class CosineAnnealingWarmRestarts(_Schedule):
+    &quot;&quot;&quot;lr = eta_min + 0.5*(base-eta_min)*(1 + cos(pi*T_cur/T_i)); on cycle end
+    restart at base_lr with period T_i *= T_mult.&quot;&quot;&quot;
+
+    def __init__(self, base_lr: float, T_0: int, T_mult: int = 1, eta_min: float = 0.0):
+        super().__init__(base_lr)
+        self.T_0, self.T_mult, self.eta_min = int(T_0), int(T_mult), float(eta_min)
+
+    def get_lr(self) -&gt; float:
+        t, period = self.step_count, self.T_0
+        while t &gt;= period:  # find current cycle (supports T_mult growth)
+            t -= period
+            period *= self.T_mult
+        return self.eta_min + 0.5 * (self.base_lr - self.eta_min) * (
+            1.0 + math.cos(math.pi * t / period))
+
+    def step(self) -&gt; float:
+        lr = self.get_lr()
+        self.step_count += 1
+        return self._push(lr)
+
+
+class WarmupStableDecay(_Schedule):
+    &quot;&quot;&quot;Linear warmup (0 -&gt; base) over `warmup_steps`, constant `stable_steps`,
+    then cosine decay to `min_lr` over `decay_steps`.&quot;&quot;&quot;
+
+    def __init__(self, base_lr: float, warmup_steps: int, stable_steps: int,
+                 decay_steps: int, min_lr: float = 0.0):
+        super().__init__(base_lr)
+        self.warmup_steps, self.stable_steps = int(warmup_steps), int(stable_steps)
+        self.decay_steps, self.min_lr = int(decay_steps), float(min_lr)
+
+    def get_lr(self) -&gt; float:
+        t = self.step_count
+        if t &lt; self.warmup_steps:
+            return self.base_lr * (t + 1) / max(1, self.warmup_steps)
+        t -= self.warmup_steps
+        if t &lt; self.stable_steps:
+            return self.base_lr
+        t -= self.stable_steps
+        if self.decay_steps &lt;= 0:
+            return self.min_lr
+        progress = min(1.0, (t + 1) / self.decay_steps)
+        return self.min_lr + 0.5 * (self.base_lr - self.min_lr) * (
+            1.0 + math.cos(math.pi * progress))
+
+    def step(self) -&gt; float:
+        lr = self.get_lr()
+        self.step_count += 1
+        return self._push(lr)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

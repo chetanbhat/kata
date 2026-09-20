@@ -1,0 +1,33 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.1 — Vectorized Linear &amp; Logistic Regression (NumPy only). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="11-linear-logistic-regression-numpy-zero-loops">1.1 — Linear &amp; Logistic Regression (NumPy, zero loops)</h1>
+<p><strong>Builds on:</strong> guides/01 §1 (matmul shapes). <strong>Builds toward:</strong> 1.2 (these
+units stack into MLPs), 3.1 (this GD loop generalizes to all optimizers).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Two answers to "fit parameters to data." Least squares has a closed form:
+set the gradient to zero and solve the normal equations
+<code>w = (X'X)⁻¹X'y</code> (plus <code>λI</code> for ridge — the bias column stays unpenalized,
+a detail beginners get wrong). Logistic regression has no closed form, so
+you iterate: full-batch gradient descent on the Bernoulli negative
+log-likelihood, i.e. cross-entropy with a sigmoid. Same data flow, two
+optimization regimes — the whole field is variations on this split.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Ridge: <code>(X'X + λI)⁻¹X'y</code>. <code>λ</code> shrinks weights toward zero (see the
+  weight-recovery test: small noise, near-exact recovery).</li>
+<li>Sigmoid must be branched (<code>z ≥ 0</code> vs <code>z &lt; 0</code>) or <code>exp(1000)</code> overflows —
+  your first encounter with <em>numerical analysis as a survival skill</em>.</li>
+<li>L1 adds <code>sign(w)</code> subgradients (sparsity); L2 adds <code>2λw</code> (shrinkage).
+  Different penalties, different solutions, one loop.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>If classes are Gaussian blobs (the test data), the logistic boundary is
+the hyperplane where <code>w·x + b = 0</code> — draw it. If accuracy stalls below
+~95% there, your gradient (not the model) is wrong.</p>
+<h2 id="readings-digested-here-originals-linked">Readings (digested here; originals linked)</h2>
+<ul>
+<li>Required: ESL §3.1–3.2 (linear methods) and §4.4 (logistic) —
+  <a href="https://web.stanford.edu/~hastie/ElemStatLearn/">web.stanford.edu/~hastie/ElemStatLearn</a></li>
+<li>Recommended: NumPy <code>linalg.solve</code> vs <code>inv</code> docs (never invert explicitly)
+  — <a href="https://numpy.org/doc/stable/reference/routines.linalg.html">numpy.org/doc/stable/reference/routines.linalg.html</a></li>
+<li>Suggested: Hoerl &amp; Kennard (1970), "Ridge regression" (the original
+  shrinkage argument; any library copy).</li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/01_foundations/linear_logistic.html">exercises/01_foundations/linear_logistic.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

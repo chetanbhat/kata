@@ -1,0 +1,86 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Research log · ML Kata</title><link rel="stylesheet" href="style.css"></head><body><nav class="top"><a href="index.html">Kata</a><a href="guides/00_start_here.html">Guides</a><a href="readings.html">Readings</a><a href="exercises.html">Exercises</a><a href="RESEARCH_LOG.html">Research log</a></nav><main><h1 id="research-log-wrong-turns-fixes-and-open-questions">Research Log — wrong turns, fixes, and open questions</h1>
+<h2 id="meta-our-own-harness-wrong-turn-fixed">Meta — our own harness wrong turn (fixed)</h2>
+<ul>
+<li>The first test suite imported <code>solutions.*</code>, so an untouched checkout
+  reported all-green and learner code was never evaluated. Tests must run
+  against the learner's implementation by default (<code>KATA_IMPL=exercises</code>),
+  with the reference behind an explicit flag. A gym that can't see you
+  can't coach you. Pinned by <code>tests/test_impl_selector.py</code>.</li>
+</ul>
+<p>Cumulative journal for the advanced track (Modules 5–8). Each entry records
+what was tried historically, why it failed or sufficed, and what replaced
+it. Add dated entries as you work through the exercises.</p>
+<h2 id="05-optimization">05 — Optimization</h2>
+<ul>
+<li><strong>Full Newton doesn't scale.</strong> Exact Hessians cost O(n³) to invert and are
+  indefinite away from minima. Damping (<code>H + λI</code>) rescues the step locally;
+  still only viable for small problems — the kata keeps it for last-layer
+  tuning and scientific models, not foundation training.</li>
+<li><strong>AdaGrad's fatal accumulation.</strong> Summing <em>all</em> past squared grads drives
+  the effective lr to zero on long runs. RMSprop's exponential moving
+  average is the one-line fix; verify by comparing lr trajectories.</li>
+<li><strong>Adam's coupled weight decay.</strong> <code>wd * p</code> passed through the adaptive
+  denominator is <em>not</em> L2 regularization. AdamW decouples it; the kata's
+  exact test (zero grad → <code>p *= 1 - lr·wd</code>) pins the difference.</li>
+<li><strong>Lion: less can match.</strong> A sign-based update with two momentum buffers
+  rivals AdamW — a reminder that the optimizer design space is not closed.</li>
+<li><strong>Flat minima generalize.</strong> SAM pays 2× grads to minimize the worst case
+  in a ρ-ball; SWA averages iterates into flat basins for free. The ascent
+  check (<code>first_step</code> must <em>raise</em> loss) keeps the implementation honest.</li>
+</ul>
+<h2 id="06-regularization-normalization">06 — Regularization &amp; normalization</h2>
+<ul>
+<li><strong>BatchNorm's origin myth.</strong> The "internal covariate shift" story did not
+  survive (Santurkar et al. 2018: BN smooths the landscape). Lesson: keep
+  the technique, distrust the first explanation.</li>
+<li><strong>Dropout → DropConnect → Stochastic Depth.</strong> Same idea climbing levels:
+  mask activations, mask weights, drop whole residual branches. Each step
+  trades finer noise for coarser structural regularization.</li>
+<li><strong>WGAN clipping underused capacity.</strong> Forcing weights into a box cripples
+  the critic; the gradient penalty enforces 1-Lipschitz where it matters
+  (interpolated samples). Spectral norm does it architecturally instead.</li>
+<li><strong>Label smoothing &amp; Mixup break dogmas.</strong> Penalizing confidence and
+  training off-manifold both "shouldn't" work — both do. Calibration and
+  robustness come from softening the target, not hardening the model.</li>
+</ul>
+<h2 id="07-sequences">07 — Sequences</h2>
+<ul>
+<li><strong>Elman RNNs can't carry memory.</strong> Backprop multiplies Jacobians; with
+  spectral radius &lt; 1 the gradient dies geometrically (Bengio 1994). The
+  kata's <code>grad_norm_vs_time</code> probe makes this a measurement, not folklore.</li>
+<li><strong>Gates, then attention, then selection.</strong> LSTM's additive cell highway →
+  GRU's merged gate → attention sidestepping recurrence entirely → SSMs
+  returning with input-dependent selection (Mamba). Each step re-asks: what
+  must be remembered, and what may be forgotten?</li>
+<li><strong>Positions: absolute → relative → none + bias.</strong> Sinusoids → RoPE/ALiBi
+  (extrapolation by construction, not by hope). ALiBi's linear penalty is
+  almost embarrassingly simple — and extrapolates.</li>
+<li><strong>KV-cache economics drive MQA/GQA.</strong> Inference is memory-bound on the
+  cache, so KV heads shrink (8→1) while Q heads stay. Architecture follows
+  the bottleneck, not the benchmark.</li>
+</ul>
+<h2 id="08-generative-models">08 — Generative models</h2>
+<ul>
+<li><strong>VAE posterior collapse.</strong> A strong decoder + full KL weight → <code>KL → 0</code>,
+  <code>z</code> ignored (Bowman et al. 2016). The <code>beta</code> knob is the annealing
+  handle; <code>beta=0 ⇒ loss == recon</code> is the kata's pinned invariant.</li>
+<li><strong>GAN minimax saturates.</strong> <code>log(1−D)</code> is flat when D confidently rejects —
+  the gradient test (saturated vs non-saturating at logit −10) exhibits the
+  exact pathology Goodfellow et al. patched in the same paper.</li>
+<li><strong>Distances matter.</strong> JS divergence → Wasserstein (meaningful curves
+  under non-overlapping supports) → penalties over constraints. Mode
+  collapse is the price of the original game, not a bug in your code.</li>
+<li><strong>Diffusion's chain was optional.</strong> DDPM's Markov forward + learned
+  reverse → DDIM's deterministic strided sampler → guidance trading
+  conditional against unconditional. The cosine schedule fixes DDPM
+  destroying low-res information too fast — schedules are hyperparameters
+  with physical meaning.</li>
+</ul>
+<h2 id="open-questions-for-future-modules">Open questions (for future modules)</h2>
+<ul>
+<li>Scaling laws (Chinchilla-optimal token/param tradeoffs) as a fitting exercise.</li>
+<li>µP (maximal update parametrization) for hyperparameter transfer.</li>
+<li>RL foundations: REINFORCE → PPO clipping → DQN target networks.</li>
+<li>Distributed primitives: all-reduce simulation, ZeRO sharding, activation
+  checkpointing cost models.</li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

@@ -1,0 +1,229 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.2 — Adaptive lineage: AdaGrad / RMSprop / AdamW / Lion / Lookahead. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 5.2 — Adaptive lineage: AdaGrad / RMSprop / AdamW / Lion / Lookahead.</h1><p class="meta">Reading: <a href="../../readings/05_optimization/adaptive_history.html">readings/05_optimization/adaptive_history.html</a> · Suite: <code>tests/test_05_optimization.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_05_optimization.py -q -k &quot;adagrad or rmsprop or adamw or lion or lookahead&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 5.2 — Adaptive lineage: AdaGrad / RMSprop / AdamW / Lion / Lookahead.
+
+Goals: feel WHY each fix exists -- AdaGrad&#x27;s ever-shrinking lr, RMSprop&#x27;s
+moving average, AdamW&#x27;s decoupled decay (exact: zero grad -&gt; p *= 1-lr*wd),
+Lion&#x27;s sign step, Lookahead&#x27;s slow/fast sync.
+
+Run: pytest tests/test_05_optimization.py -k &quot;adagrad or rmsprop or adamw or lion or lookahead&quot;
+Reading: readings/05_optimization/adaptive_history.md
+&quot;&quot;&quot;
+
+import torch
+
+
+class AdaGrad:
+    def __init__(self, params, lr: float = 0.01, eps: float = 1e-10):
+        # TODO: Per-param sum of squared grads G.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: G += g^2; p -= lr*g/(sqrt(G)+eps).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class RMSprop:
+    def __init__(self, params, lr=1e-3, alpha=0.99, eps=1e-8):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: EMA of squared grads instead of AdaGrad&#x27;s full sum.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class AdamW:
+    &quot;&quot;&quot;Adam + DECOUPLED decay: the adaptivity must NOT touch the wd term.&quot;&quot;&quot;
+
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: Bias-corrected Adam step, then p -= lr*wd*p separately.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class Lion:
+    &quot;&quot;&quot;Sign-based update with momentum (hint: first step from zero = -lr*sign(g)).&quot;&quot;&quot;
+
+    def __init__(self, params, lr=1e-4, betas=(0.9, 0.99), weight_decay=0.0):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class Lookahead:
+    &quot;&quot;&quot;Wrap any optimizer with .params/.step()/.zero_grad(); sync every k steps.&quot;&quot;&quot;
+
+    def __init__(self, optimizer, alpha: float = 0.5, k: int = 6):
+        # TODO: Slow-weight buffers + step counter.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self, *args, **kwargs):
+        # TODO: Fast step; every k: slow += a*(fast-slow); fast &lt;- slow.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_damped_newton_one_step_quadratic</code></li><li><code>test_lbfgs_direction_empty_history_is_steepest</code></li><li><code>test_lbfgs_10_step_ill_conditioned_convergence</code></li><li><code>test_adaptive_10_step_convergence</code></li><li><code>test_adamw_decoupled_decay_exact</code></li><li><code>test_lion_first_step_is_signed</code></li><li><code>test_lookahead_sync_exact</code></li><li><code>test_sam_ascent_then_10_step_convergence</code></li><li><code>test_swa_average_exact</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Adaptive optimizers lineage: AdaGrad -&gt; RMSprop -&gt; Adam -&gt; AdamW -&gt; Lion.
+
+History of the central wrong turn: AdaGrad (2011) accumulates ALL past
+squared grads, so the effective lr decays to zero on long non-convex runs.
+RMSprop (Hinton, lecture 6e, unpublished) fixes it with an exponential
+moving average. Adam (2014) adds momentum + bias correction and wins by
+default -- but couples weight decay into the adaptive denominator (the
+subtle bug AdamW, 2017, fixes by decoupling). Lion (2023) shows a
+sign-based update with less memory can match AdamW. Lookahead (2019) wraps
+ANY optimizer with slow/fast weights.
+&quot;&quot;&quot;
+
+import torch
+
+
+class AdaGrad:
+    def __init__(self, params, lr: float = 0.01, eps: float = 1e-10):
+        self.params = list(params)
+        self.lr, self.eps = float(lr), float(eps)
+        self.G = [torch.zeros_like(p) for p in self.params]
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        for p, G in zip(self.params, self.G):
+            if p.grad is None:
+                continue
+            G.addcmul_(p.grad, p.grad)
+            p.addcdiv_(p.grad, G.sqrt() + self.eps, value=-self.lr)
+
+
+class RMSprop:
+    def __init__(self, params, lr: float = 1e-3, alpha: float = 0.99, eps: float = 1e-8):
+        self.params = list(params)
+        self.lr, self.alpha, self.eps = float(lr), float(alpha), float(eps)
+        self.G = [torch.zeros_like(p) for p in self.params]
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        for p, G in zip(self.params, self.G):
+            if p.grad is None:
+                continue
+            G.mul_(self.alpha).addcmul_(p.grad, p.grad, value=1.0 - self.alpha)
+            p.addcdiv_(p.grad, G.sqrt() + self.eps, value=-self.lr)
+
+
+class AdamW:
+    &quot;&quot;&quot;Adam with DECOUPLED weight decay: p -= lr*wd*p (outside the adaptivity).&quot;&quot;&quot;
+
+    def __init__(self, params, lr: float = 1e-3, betas=(0.9, 0.999),
+                 eps: float = 1e-8, weight_decay: float = 0.01):
+        self.params = list(params)
+        self.lr, self.eps = float(lr), float(eps)
+        self.b1, self.b2 = betas
+        self.weight_decay = float(weight_decay)
+        self.t = 0
+        self.m = [torch.zeros_like(p) for p in self.params]
+        self.v = [torch.zeros_like(p) for p in self.params]
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        self.t += 1
+        bc1, bc2 = 1.0 - self.b1 ** self.t, 1.0 - self.b2 ** self.t
+        for p, m, v in zip(self.params, self.m, self.v):
+            if p.grad is None:
+                continue
+            m.mul_(self.b1).add_(p.grad, alpha=1.0 - self.b1)
+            v.mul_(self.b2).addcmul_(p.grad, p.grad, value=1.0 - self.b2)
+            denom = (v / bc2).sqrt() + self.eps
+            p.addcdiv_(m / bc1, denom, value=-self.lr)
+            p.add_(p, alpha=-self.lr * self.weight_decay)  # decoupled
+
+
+class Lion:
+    &quot;&quot;&quot;Evo-discovered sign update: c = b1*m + (1-b1)*g; p -= lr*(sign(c)+wd*p).&quot;&quot;&quot;
+
+    def __init__(self, params, lr: float = 1e-4, betas=(0.9, 0.99),
+                 weight_decay: float = 0.0):
+        self.params = list(params)
+        self.lr = float(lr)
+        self.b1, self.b2 = betas
+        self.weight_decay = float(weight_decay)
+        self.m = [torch.zeros_like(p) for p in self.params]
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def step(self):
+        for p, m in zip(self.params, self.m):
+            if p.grad is None:
+                continue
+            c = self.b1 * m + (1.0 - self.b1) * p.grad
+            p.add_(torch.sign(c) + self.weight_decay * p, alpha=-self.lr)
+            m.mul_(self.b2).add_(p.grad, alpha=1.0 - self.b2)
+
+
+class Lookahead:
+    &quot;&quot;&quot;Wraps any optimizer exposing .params/.step()/.zero_grad().
+
+    k fast steps, then slow += alpha*(fast - slow); fast &lt;- slow.
+    &quot;&quot;&quot;
+
+    def __init__(self, optimizer, alpha: float = 0.5, k: int = 6):
+        self.opt = optimizer
+        self.params = optimizer.params
+        self.alpha, self.k = float(alpha), int(k)
+        self.slow = [p.detach().clone() for p in self.params]
+        self._count = 0
+
+    def zero_grad(self):
+        self.opt.zero_grad()
+
+    @torch.no_grad()
+    def step(self, *args, **kwargs):
+        self.opt.step(*args, **kwargs)
+        self._count += 1
+        if self._count % self.k == 0:
+            for p, s in zip(self.params, self.slow):
+                s.add_(p - s, alpha=self.alpha)
+                p.copy_(s)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

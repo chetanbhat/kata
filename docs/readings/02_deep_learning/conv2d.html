@@ -1,0 +1,39 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.3 — Manual Conv2D via unfold + matmul. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="23-manual-conv2d-via-unfold-matmul">2.3 — Manual Conv2D via <code>unfold</code> + MatMul</h1>
+<p><strong>Builds on:</strong> 2.2 (Linear as matmul — convolution is the same idea with
+weight sharing), guides/01 §1 (shape bookkeeping). <strong>Builds toward:</strong> 4.1
+(ResNet <em>is</em> these blocks + skip paths).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Convolution looks exotic but is mechanically simple: slide a window over
+the input, dot each patch with the kernel. <code>unfold</code> materializes all
+patches as columns (<code>(B, C·kH·kW, L)</code>), then one matrix multiply applies
+every filter to every patch at once — exactly how libraries implement it
+under the hood (im2col). Stride = step size, padding = border, dilation =
+holes in the kernel (atrous: bigger receptive field, same parameters).
+Backward is free: every op used is differentiable, so autograd handles it —
+verify against <code>nn.Conv2d</code> with copied weights (the test demands exact
+equality, not vibes).</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Output size: <code>⌊(W + 2P − D(K−1) − 1)/S⌋ + 1</code> per axis. Derive it by
+  counting window placements; the test's <code>(8,8)→(4,4)</code> (k=3,s=2,p=1) is
+  your check.</li>
+<li>Weight sharing: a dense layer on 8×8×3 would need ~200k weights per
+  output map; conv reuses <code>C·k²</code> everywhere — translation equivariance as
+  parameter efficiency.</li>
+<li>Dilation composes receptive fields exponentially with depth — the
+  mechanism behind WaveNet/DeepLab context (no extra code in this exercise,
+  but know the formula generalizes).</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>With weights copied from your layer, <code>nn.Conv2d</code> must agree to <code>1e-5</code>.
+Off-by-one in the output-size formula shows up as a reshape error, not a
+wrong number — read the reshape error as "my arithmetic, not my code."</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Goodfellow et al., <em>Deep Learning</em>, Ch. 9 (convolution) —
+  <a href="https://www.deeplearningbook.org">deeplearningbook.org</a></li>
+<li>Recommended: CS231n, "Convolutional Networks" (best visual treatment) —
+  <a href="https://cs231n.github.io/convolutional-networks/">cs231n.github.io/convolutional-networks</a></li>
+<li>Suggested: Dumoulin &amp; Visin, "A guide to convolution arithmetic" —
+  <a href="https://arxiv.org/abs/1603.07285">arxiv.org/abs/1603.07285</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/02_deep_learning/conv2d.html">exercises/02_deep_learning/conv2d.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

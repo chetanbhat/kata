@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 7.3 — Diagonal SSM discretization + Mamba-lite selective scan. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="73-diagonal-ssms-mamba-lite-selective-scan">7.3 — Diagonal SSMs &amp; Mamba-lite Selective Scan</h1>
+<p><strong>Builds on:</strong> 7.1 (the memory problem, answered without attention), 1.2
+(discretization is applied calculus). <strong>Builds toward:</strong> linear-time
+sequence modeling literacy (Mamba, Griffin, RWKV-adjacent ideas).</p>
+<h2 id="introduction">Introduction</h2>
+<p>State-space models are control theory's answer to sequences: a continuous
+linear system <code>dh/dt = Ah + Bx</code>, <code>y = Ch</code>, discretized to a recurrence.
+<strong>S4</strong> (2022) showed that with the right <code>A</code> init (HiPPO: memorize history
+optimally) a <em>linear</em> recurrence rivals attention on long-range benchmarks
+— no quadratic cost. <strong>Mamba</strong> (2023) adds <em>selection</em>: make <code>Δ, B, C</code>
+input-dependent so the scan keeps what's relevant and forgets the rest
+(gating returns, wearing a trench coat). The exercise implements both
+halves: exact ZOH discretization of a diagonal system (<code>A_d = e^{ΔA}</code>,
+with the <code>A→0</code> limit handled), then the selective loop with a stable
+negative diagonal <code>A</code> and skip connection <code>D</code>.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>ZOH: <code>A_d = e^{ΔA}</code>, <code>B_d = (A_d−1)/A·B</code> — exact under piecewise-constant
+  inputs. As <code>A→0</code>: <code>B_d → ΔB</code> (use the limit; the test pins it).</li>
+<li>Negative diagonal <code>A</code> ⇒ <code>|A_d| &lt; 1</code> ⇒ bounded memory, no explosion by
+  construction (compare Elman's prayers in 7.1).</li>
+<li>Selectivity = time-variance: fixed <code>(A,B,C)</code> is a convolution (parallel
+  training); input-dependent breaks that — Mamba's hardware-aware scan
+  recovers speed. The loop here is the honest O(T) version.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Set <code>Δ</code> tiny: <code>A_d ≈ I</code>, memory persists (slow forgetting). Set it large:
+<code>A_d ≈ 0</code>, memory resets (attend to now). Selection learns this knob per
+step — plot <code>Δ</code> over a sequence and you can <em>read</em> what the model keeps.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Gu et al., "Efficiently Modeling Long Sequences with S4" —
+  <a href="https://arxiv.org/abs/2111.00396">arxiv.org/abs/2111.00396</a></li>
+<li>Recommended: Gu &amp; Dao, "Mamba" —
+  <a href="https://arxiv.org/abs/2312.00752">arxiv.org/abs/2312.00752</a></li>
+<li>Suggested: Gu et al., "HiPPO" (the memory theory behind A's init) —
+  <a href="https://arxiv.org/abs/2008.07669">arxiv.org/abs/2008.07669</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/07_sequences/ssm.html">exercises/07_sequences/ssm.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

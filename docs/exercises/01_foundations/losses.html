@@ -1,0 +1,69 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.3 — Loss functions &amp; numerical stability (NumPy). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 1.3 — Loss functions &amp; numerical stability (NumPy).</h1><p class="meta">Reading: <a href="../../readings/01_foundations/losses.html">readings/01_foundations/losses.html</a> · Suite: <code>tests/test_01_foundations.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_01_foundations.py -q -k &quot;mse or bce or cross_entropy or stable&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 1.3 — Loss functions &amp; numerical stability (NumPy).
+
+Goals: MSE, clipped BCE, and cross-entropy from raw logits stabilized with
+the log-sum-exp trick (subtract the row max before exponentiating).
+
+Run: pytest tests/test_01_foundations.py -k &quot;loss or cross_entropy or bce&quot;
+Reading: readings/01_foundations/losses.md
+&quot;&quot;&quot;
+
+import numpy as np
+
+
+def mse(y_pred: np.ndarray, y_true: np.ndarray) -&gt; float:
+    # TODO: Implement this.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def bce(y_pred: np.ndarray, y_true: np.ndarray, eps: float = 1e-12) -&gt; float:
+    # TODO: Clip probabilities to [eps, 1-eps], then mean BCE.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def log_softmax(logits: np.ndarray) -&gt; np.ndarray:
+    # TODO: Row-wise log-softmax with the log-sum-exp trick.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def cross_entropy(logits: np.ndarray, targets: np.ndarray) -&gt; float:
+    # TODO: Mean negative log-probability of the target classes.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_ols_shape_and_weight_recovery</code></li><li><code>test_ridge_runs_and_scales_with_batch</code></li><li><code>test_logistic_shape_and_accuracy</code></li><li><code>test_logistic_10_step_convergence</code></li><li><code>test_stable_sigmoid_extremes</code></li><li><code>test_perceptron_separable_converges</code></li><li><code>test_mlp_10_step_convergence_and_shape</code></li><li><code>test_activation_values_and_vectorization</code></li><li><code>test_mlp_numerical_gradients_nonzero</code></li><li><code>test_mse_bce_known_values</code></li><li><code>test_losses_numerically_stable</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Loss functions with numerical stabilization (NumPy, vectorized).
+
+Math objectives:
+  - MSE: mean squared error.
+  - BCE: binary cross-entropy, stable via clipped probabilities.
+  - Cross-entropy: multi-class loss from raw logits, stable via the
+    log-sum-exp trick (subtract row max before exp).
+&quot;&quot;&quot;
+
+import numpy as np
+
+
+def mse(y_pred: np.ndarray, y_true: np.ndarray) -&gt; float:
+    y_pred = np.asarray(y_pred, dtype=float)
+    y_true = np.asarray(y_true, dtype=float)
+    return float(np.mean((y_pred - y_true) ** 2))
+
+
+def bce(y_pred: np.ndarray, y_true: np.ndarray, eps: float = 1e-12) -&gt; float:
+    &quot;&quot;&quot;Binary cross-entropy; probabilities clipped to [eps, 1-eps].&quot;&quot;&quot;
+    p = np.clip(np.asarray(y_pred, dtype=float), eps, 1.0 - eps)
+    y = np.asarray(y_true, dtype=float)
+    return float(-np.mean(y * np.log(p) + (1.0 - y) * np.log(1.0 - p)))
+
+
+def log_softmax(logits: np.ndarray) -&gt; np.ndarray:
+    &quot;&quot;&quot;Row-wise log-softmax using the log-sum-exp trick.&quot;&quot;&quot;
+    z = np.asarray(logits, dtype=float)
+    z = z - z.max(axis=-1, keepdims=True)
+    return z - np.log(np.sum(np.exp(z), axis=-1, keepdims=True))
+
+
+def cross_entropy(logits: np.ndarray, targets: np.ndarray) -&gt; float:
+    &quot;&quot;&quot;Mean cross-entropy from raw logits; targets are class indices.&quot;&quot;&quot;
+    log_p = log_softmax(logits)
+    t = np.asarray(targets).reshape(-1)
+    n = log_p.shape[0]
+    return float(-np.mean(log_p[np.arange(n), t]))
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

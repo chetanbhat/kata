@@ -1,0 +1,111 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 7.1 — Elman RNN, GRU, and the vanishing-gradient probe. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 7.1 — Elman RNN, GRU, and the vanishing-gradient probe.</h1><p class="meta">Reading: <a href="../../readings/07_sequences/rnn_history.html">readings/07_sequences/rnn_history.html</a> · Suite: <code>tests/test_07_sequences.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_07_sequences.py -q -k &quot;rnn or gru or vanishing&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 7.1 — Elman RNN, GRU, and the vanishing-gradient probe.
+
+Goals: tanh recurrence; z/r/n GRU gates; grad_norm_vs_time must SHOW decay
+for small recurrent weights (the 1990s wrong turn, measured not memorized).
+
+Run: pytest tests/test_07_sequences.py -k &quot;rnn or gru or vanishing&quot;
+Reading: readings/07_sequences/rnn_history.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class ElmanRNNCell(nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, recurrent_scale: float = 1.0):
+        super().__init__()
+        # TODO: W_ih/W_hh/b params; scale the recurrent matrix.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor, h=None):
+        # TODO: tanh(x@W_ih&#x27; + h@W_hh&#x27; + b).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class GRUCell(nn.Module):
+    &quot;&quot;&quot;z update, r reset, n candidate: h = (1-z)*n + z*h_prev.&quot;&quot;&quot;
+
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        # TODO: Six fused-style matrices + 3-part bias.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor, h=None):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def grad_norm_vs_time(cell, seq_len: int, batch=4, input_size=6, seed=0):
+    # TODO: Forward a random seq (retain grads), backward from last hidden,
+    # return [||d(sum h_T)/d h_t||] per step.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_elman_and_gru_shapes_and_grads</code></li><li><code>test_vanishing_gradient_measured_not_memorized</code></li><li><code>test_gru_10_step_convergence</code></li><li><code>test_alibi_slopes_and_bias_shapes</code></li><li><code>test_sliding_window_mask_exact</code></li><li><code>test_gqa_shapes_and_grads</code></li><li><code>test_gqa_causal_no_future_leak</code></li><li><code>test_gqa_10_step_convergence</code></li><li><code>test_discretize_diag_exact_and_zero_limit</code></li><li><code>test_selective_scan_shape_grad_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Sequence history I: Elman RNN -&gt; LSTM/GRU, and WHY (vanishing grads).
+
+History: Elman RNNs (1990) cannot learn long dependencies -- backprop
+multiplies Jacobians, whose norms shrink geometrically when the recurrent
+spectral radius &lt; 1 (Bengio 1994). LSTM (1997) fixes it with an additive
+cell highway gated by sigmoids; GRU (2014) compresses f+i into one update
+gate. This file makes the wrong turn MEASURABLE: grad-norm-vs-time probes.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class ElmanRNNCell(nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, recurrent_scale: float = 1.0):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.W_ih = nn.Parameter(torch.empty(hidden_size, input_size))
+        self.W_hh = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.b = nn.Parameter(torch.zeros(hidden_size))
+        nn.init.xavier_uniform_(self.W_ih)
+        nn.init.xavier_uniform_(self.W_hh)
+        with torch.no_grad():
+            self.W_hh.mul_(recurrent_scale)
+
+    def forward(self, x: torch.Tensor, h: torch.Tensor | None = None):
+        if h is None:
+            h = torch.zeros(x.shape[0], self.hidden_size, device=x.device, dtype=x.dtype)
+        return torch.tanh(x @ self.W_ih.t() + h @ self.W_hh.t() + self.b)
+
+
+class GRUCell(nn.Module):
+    &quot;&quot;&quot;z update gate, r reset gate, n candidate: h = (1-z)*n + z*h_prev.&quot;&quot;&quot;
+
+    def __init__(self, input_size: int, hidden_size: int):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.W_iz = nn.Parameter(torch.empty(hidden_size, input_size))
+        self.W_hz = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.W_ir = nn.Parameter(torch.empty(hidden_size, input_size))
+        self.W_hr = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.W_in = nn.Parameter(torch.empty(hidden_size, input_size))
+        self.W_hn = nn.Parameter(torch.empty(hidden_size, hidden_size))
+        self.b = nn.Parameter(torch.zeros(3 * hidden_size))
+        for w in (self.W_iz, self.W_hz, self.W_ir, self.W_hr, self.W_in, self.W_hn):
+            nn.init.xavier_uniform_(w)
+
+    def forward(self, x: torch.Tensor, h: torch.Tensor | None = None):
+        if h is None:
+            h = torch.zeros(x.shape[0], self.hidden_size, device=x.device, dtype=x.dtype)
+        bz, br, bn = self.b.chunk(3)
+        z = torch.sigmoid(x @ self.W_iz.t() + h @ self.W_hz.t() + bz)
+        r = torch.sigmoid(x @ self.W_ir.t() + h @ self.W_hr.t() + br)
+        n = torch.tanh(x @ self.W_in.t() + (r * h) @ self.W_hn.t() + bn)
+        return (1 - z) * n + z * h
+
+
+def grad_norm_vs_time(cell: nn.Module, seq_len: int, batch: int = 4,
+                      input_size: int = 6, seed: int = 0) -&gt; list[float]:
+    &quot;&quot;&quot;||d(sum h_T)/d h_t|| for t = 0..T-1. Vanishing =&gt; early norms ~ 0.&quot;&quot;&quot;
+    torch.manual_seed(seed)
+    hiddens, h = [], None
+    for _ in range(seq_len):
+        x = torch.randn(batch, input_size)
+        h = cell(x, h)
+        h.retain_grad()
+        hiddens.append(h)
+    hiddens[-1].sum().backward()
+    return [float(h.grad.norm()) for h in hiddens]
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

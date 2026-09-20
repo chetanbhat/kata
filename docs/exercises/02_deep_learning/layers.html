@@ -1,0 +1,155 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.2 — Custom layers: Linear, BatchNorm1d, LayerNorm, Dropout. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 2.2 — Custom layers: Linear, BatchNorm1d, LayerNorm, Dropout.</h1><p class="meta">Reading: <a href="../../readings/02_deep_learning/layers.html">readings/02_deep_learning/layers.html</a> · Suite: <code>tests/test_02_deep_learning.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_02_deep_learning.py -q -k &quot;linear or norm or dropout&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 2.2 — Custom layers: Linear, BatchNorm1d, LayerNorm, Dropout.
+
+Goals: custom init (He/Xavier), running-stat BatchNorm with train/eval
+behavior, LayerNorm over trailing dims, inverted Dropout.
+
+Run: pytest tests/test_02_deep_learning.py -k &quot;layer or norm or dropout or linear&quot;
+Reading: readings/02_deep_learning/layers.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class Linear(nn.Module):
+    &quot;&quot;&quot;Dense layer with selectable init: he / xavier / zeros.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int, init: str = &quot;he&quot;):
+        super().__init__()
+        # TODO: Create weight/bias parameters and apply the chosen init.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class BatchNorm1d(nn.Module):
+    &quot;&quot;&quot;Batch norm with running stats; batch stats in train, running in eval.&quot;&quot;&quot;
+
+    def __init__(self, num_features: int, eps: float = 1e-5, momentum: float = 0.1):
+        super().__init__()
+        # TODO: weight/bias params + running_mean/running_var buffers.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class LayerNorm(nn.Module):
+    &quot;&quot;&quot;Layer norm over the last len(normalized_shape) dims, with affine.&quot;&quot;&quot;
+
+    def __init__(self, normalized_shape, eps: float = 1e-5):
+        super().__init__()
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class Dropout(nn.Module):
+    &quot;&quot;&quot;Inverted dropout: scale by 1/(1-p) in train, identity in eval.&quot;&quot;&quot;
+
+    def __init__(self, p: float = 0.5):
+        super().__init__()
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_autograd_known_gradients</code></li><li><code>test_autograd_pow_div_exp_sigmoid_relu</code></li><li><code>test_autograd_10_step_scalar_descent</code></li><li><code>test_linear_shape_and_grad</code></li><li><code>test_linear_10_step_convergence</code></li><li><code>test_batchnorm_train_eval_and_stats</code></li><li><code>test_layernorm_normalizes</code></li><li><code>test_dropout_eval_identity_and_train_shape</code></li><li><code>test_conv2d_matches_nn_conv2d_and_shape</code></li><li><code>test_conv2d_dilation_shape_and_grad</code></li><li><code>test_conv2d_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Custom neural-network layers in PyTorch.
+
+Covers: Linear with Xavier/Glorot + He/Kaiming init, BatchNorm1d with
+running statistics, LayerNorm, and Dropout with train/eval scaling.
+&quot;&quot;&quot;
+
+import math
+
+import torch
+import torch.nn as nn
+
+
+class Linear(nn.Module):
+    &quot;&quot;&quot;Dense layer y = xW&#x27; + b with selectable init: he / xavier / zeros.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int, init: str = &quot;he&quot;):
+        super().__init__()
+        self.weight = nn.Parameter(torch.empty(out_features, in_features))
+        self.bias = nn.Parameter(torch.zeros(out_features))
+        self.reset_parameters(init)
+
+    def reset_parameters(self, init: str = &quot;he&quot;):
+        if init == &quot;he&quot;:
+            nn.init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+        elif init == &quot;xavier&quot;:
+            nn.init.xavier_uniform_(self.weight)
+        elif init == &quot;zeros&quot;:
+            nn.init.zeros_(self.weight)
+        else:
+            raise ValueError(f&quot;unknown init: {init}&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        return x @ self.weight.t() + self.bias
+
+
+class BatchNorm1d(nn.Module):
+    &quot;&quot;&quot;Batch norm tracking running stats; uses batch stats in train mode.&quot;&quot;&quot;
+
+    def __init__(self, num_features: int, eps: float = 1e-5, momentum: float = 0.1):
+        super().__init__()
+        self.eps, self.momentum = eps, momentum
+        self.weight = nn.Parameter(torch.ones(num_features))
+        self.bias = nn.Parameter(torch.zeros(num_features))
+        self.register_buffer(&quot;running_mean&quot;, torch.zeros(num_features))
+        self.register_buffer(&quot;running_var&quot;, torch.ones(num_features))
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        if self.training:
+            mean = x.mean(dim=0)
+            var = x.var(dim=0, unbiased=False)
+            with torch.no_grad():
+                self.running_mean.mul_(1 - self.momentum).add_(mean, alpha=self.momentum)
+                self.running_var.mul_(1 - self.momentum).add_(var, alpha=self.momentum)
+        else:
+            mean, var = self.running_mean, self.running_var
+        x_hat = (x - mean) / torch.sqrt(var + self.eps)
+        return self.weight * x_hat + self.bias
+
+
+class LayerNorm(nn.Module):
+    &quot;&quot;&quot;Layer norm over the last `len(normalized_shape)` dims (with affine).&quot;&quot;&quot;
+
+    def __init__(self, normalized_shape, eps: float = 1e-5):
+        super().__init__()
+        if isinstance(normalized_shape, int):
+            normalized_shape = (normalized_shape,)
+        self.normalized_shape = tuple(normalized_shape)
+        self.eps = eps
+        self.weight = nn.Parameter(torch.ones(self.normalized_shape))
+        self.bias = nn.Parameter(torch.zeros(self.normalized_shape))
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        dims = tuple(range(-len(self.normalized_shape), 0))
+        mean = x.mean(dim=dims, keepdim=True)
+        var = x.var(dim=dims, unbiased=False, keepdim=True)
+        return self.weight * (x - mean) / torch.sqrt(var + self.eps) + self.bias
+
+
+class Dropout(nn.Module):
+    &quot;&quot;&quot;Inverted dropout: scales by 1/(1-p) in training, identity in eval.&quot;&quot;&quot;
+
+    def __init__(self, p: float = 0.5):
+        super().__init__()
+        assert 0.0 &lt;= p &lt; 1.0, &quot;dropout prob must be in [0, 1)&quot;
+        self.p = p
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        if not self.training or self.p == 0.0:
+            return x
+        mask = (torch.rand_like(x) &gt; self.p).to(x.dtype) / (1.0 - self.p)
+        return x * mask
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

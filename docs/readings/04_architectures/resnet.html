@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 4.1 — Residual blocks (ResNet basic + bottleneck). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="41-residual-blocks-basic-bottleneck-prepost-activation">4.1 — Residual Blocks (Basic + Bottleneck, Pre/Post Activation)</h1>
+<p><strong>Builds on:</strong> 2.2–2.3 (conv + BN + ReLU are the Lego bricks). <strong>Builds
+toward:</strong> 6.1 (stochastic depth drops these branches), 7.x (highways
+reappear as gates and attention bypasses).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Plain nets degrade past ~20 layers: not overfitting — <em>optimization</em>
+fails, gradients vanish through long chains. The residual fix is almost
+insultingly simple: learn <code>F(x)</code> and output <code>F(x) + x</code>. If identity is
+optimal, the layer drives <code>F → 0</code> (easy); gradients get a clean shortcut
+path backwards (the <code>+x</code> term differentiates to 1). Dimension mismatch
+(stride/channel change) needs a 1×1 projection shortcut. Bottlenecks
+(1×1 reduce → 3×3 → 1×1 expand) cut FLOPs so depth can scale to 100+.
+Pre-activation (BN–ReLU–Conv ordering) keeps the shortcut path <em>clean</em> —
+every norm in the exercise is sized so all parameters participate.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Backward through <code>y = F(x) + x</code>: <code>dy/dx = dF/dx + I</code>. The identity term
+  guarantees gradient flow no matter how broken <code>F</code> is.</li>
+<li>Projection shortcut: 1×1 conv matching channels/stride — used <em>only</em> on
+  mismatch; identity elsewhere (projections everywhere would defeat the
+  purpose and add parameters pointlessly).</li>
+<li>Bottleneck economics: two 1×1 convs around one 3×3 cost ~<code>1/4</code> of two
+  3×3s at the same width — ResNet-50+ is bottleneck-only for this reason.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Zero-initialize the last BN of a block: the block starts as identity and
+training <em>adds</em> residual corrections. If your block can't learn identity
+initially, depth will hurt instead of help.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: He et al., "Deep Residual Learning" —
+  <a href="https://arxiv.org/abs/1512.03385">arxiv.org/abs/1512.03385</a></li>
+<li>Recommended: He et al., "Identity Mappings in Deep Residual Networks"
+  (why pre-activation) —
+  <a href="https://arxiv.org/abs/1603.05027">arxiv.org/abs/1603.05027</a></li>
+<li>Suggested: Huang et al., "Densely Connected Networks" (skip → dense) —
+  <a href="https://arxiv.org/abs/1608.06993">arxiv.org/abs/1608.06993</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/04_architectures/resnet.html">exercises/04_architectures/resnet.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

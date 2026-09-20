@@ -1,0 +1,164 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.1 — Vectorized Linear &amp; Logistic Regression (NumPy only). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 1.1 — Vectorized Linear &amp; Logistic Regression (NumPy only).</h1><p class="meta">Reading: <a href="../../readings/01_foundations/linear_logistic.html">readings/01_foundations/linear_logistic.html</a> · Suite: <code>tests/test_01_foundations.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_01_foundations.py -q -k &quot;ols or ridge or logistic or sigmoid&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 1.1 — Vectorized Linear &amp; Logistic Regression (NumPy only).
+
+Goals:
+  - LinearRegression.fit: closed-form ridge solution, bias unpenalized.
+  - LogisticRegression.fit: full-batch GD on L1/L2-penalized BCE, zero loops.
+  - stable_sigmoid: no overflow for large |z|.
+
+Run: pytest tests/test_01_foundations.py -k &quot;regression or ols or logistic&quot;
+Reading: readings/01_foundations/linear_logistic.md
+&quot;&quot;&quot;
+
+import numpy as np
+
+
+def _add_bias(X: np.ndarray) -&gt; np.ndarray:
+    # TODO: Append a ones column. Shape (n, d) -&gt; (n, d+1).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def stable_sigmoid(z: np.ndarray) -&gt; np.ndarray:
+    &quot;&quot;&quot;Numerically stable sigmoid.&quot;&quot;&quot;
+    # TODO: Implement this (branch on z &gt;= 0 to avoid exp overflow).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class LinearRegression:
+    &quot;&quot;&quot;OLS with optional L2 penalty (bias excluded from the penalty).&quot;&quot;&quot;
+
+    def __init__(self, l2: float = 0.0):
+        self.l2 = float(l2)
+        self.w = None
+        self.b = None
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -&gt; &quot;LinearRegression&quot;:
+        # TODO: Solve (Xb&#x27;Xb + P)^{-1} Xb&#x27;y with np.linalg.solve.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def mse(self, X: np.ndarray, y: np.ndarray) -&gt; float:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class LogisticRegression:
+    &quot;&quot;&quot;Binary logistic regression via vectorized full-batch gradient descent.&quot;&quot;&quot;
+
+    def __init__(self, lr: float = 0.5, n_iters: int = 1000,
+                 l1: float = 0.0, l2: float = 0.0):
+        self.lr, self.n_iters = float(lr), int(n_iters)
+        self.l1, self.l2 = float(l1), float(l2)
+        self.w = None
+        self.b = 0.0
+        self.loss_history: list[float] = []
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -&gt; &quot;LogisticRegression&quot;:
+        # TODO: Loop n_iters: sigmoid forward, BCE loss, vectorized gradients.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def predict_proba(self, X: np.ndarray) -&gt; np.ndarray:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def predict(self, X: np.ndarray, threshold: float = 0.5) -&gt; np.ndarray:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_ols_shape_and_weight_recovery</code></li><li><code>test_ridge_runs_and_scales_with_batch</code></li><li><code>test_logistic_shape_and_accuracy</code></li><li><code>test_logistic_10_step_convergence</code></li><li><code>test_stable_sigmoid_extremes</code></li><li><code>test_perceptron_separable_converges</code></li><li><code>test_mlp_10_step_convergence_and_shape</code></li><li><code>test_activation_values_and_vectorization</code></li><li><code>test_mlp_numerical_gradients_nonzero</code></li><li><code>test_mse_bce_known_values</code></li><li><code>test_losses_numerically_stable</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Vectorized Linear &amp; Logistic Regression in pure NumPy.
+
+Math objectives:
+  - OLS: closed-form ridge solution  w = (X&#x27;X + l2*I)^{-1} X&#x27;y (bias unpenalized).
+  - Logistic regression: full-batch gradient descent on the L1/L2-penalized
+    binary cross-entropy loss, fully vectorized (no Python loops over samples).
+&quot;&quot;&quot;
+
+import numpy as np
+
+
+def _add_bias(X: np.ndarray) -&gt; np.ndarray:
+    X = np.asarray(X, dtype=float)
+    return np.concatenate([X, np.ones((X.shape[0], 1))], axis=1)
+
+
+def stable_sigmoid(z: np.ndarray) -&gt; np.ndarray:
+    &quot;&quot;&quot;Numerically stable sigmoid (no overflow for large |z|).&quot;&quot;&quot;
+    z = np.asarray(z, dtype=float)
+    out = np.empty_like(z)
+    pos = z &gt;= 0
+    out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+    exp_z = np.exp(z[~pos])
+    out[~pos] = exp_z / (1.0 + exp_z)
+    return out
+
+
+class LinearRegression:
+    &quot;&quot;&quot;Ordinary Least Squares with optional L2 (ridge) penalty on weights.&quot;&quot;&quot;
+
+    def __init__(self, l2: float = 0.0):
+        self.l2 = float(l2)
+        self.w: np.ndarray | None = None  # (n_features,)
+        self.b: float | None = None
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -&gt; &quot;LinearRegression&quot;:
+        X, y = np.asarray(X, dtype=float), np.asarray(y, dtype=float).reshape(-1)
+        n, d = X.shape
+        Xb = _add_bias(X)  # (n, d+1); bias column excluded from penalty
+        penalty = self.l2 * np.eye(d + 1)
+        penalty[-1, -1] = 0.0
+        theta = np.linalg.solve(Xb.T @ Xb + penalty, Xb.T @ y)
+        self.w, self.b = theta[:-1], float(theta[-1])
+        return self
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        X = np.asarray(X, dtype=float)
+        return X @ self.w + self.b
+
+    def mse(self, X: np.ndarray, y: np.ndarray) -&gt; float:
+        return float(np.mean((self.predict(X) - np.asarray(y, dtype=float)) ** 2))
+
+
+class LogisticRegression:
+    &quot;&quot;&quot;Binary logistic regression trained with vectorized full-batch GD.
+
+    Loss = mean BCE + l2 * ||w||^2 + l1 * ||w||_1 (bias unpenalized).
+    &quot;&quot;&quot;
+
+    def __init__(self, lr: float = 0.5, n_iters: int = 1000,
+                 l1: float = 0.0, l2: float = 0.0):
+        self.lr, self.n_iters = float(lr), int(n_iters)
+        self.l1, self.l2 = float(l1), float(l2)
+        self.w: np.ndarray | None = None
+        self.b: float = 0.0
+        self.loss_history: list[float] = []
+
+    def fit(self, X: np.ndarray, y: np.ndarray) -&gt; &quot;LogisticRegression&quot;:
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float).reshape(-1)
+        n, d = X.shape
+        self.w = np.zeros(d)
+        self.b = 0.0
+        self.loss_history = []
+        for _ in range(self.n_iters):
+            p = stable_sigmoid(X @ self.w + self.b)
+            self.loss_history.append(float(self._loss(p, y)))
+            err = (p - y) / n  # (n,)
+            grad_w = X.T @ err + 2.0 * self.l2 * self.w + self.l1 * np.sign(self.w)
+            grad_b = float(np.sum(err))
+            self.w -= self.lr * grad_w
+            self.b -= self.lr * grad_b
+        return self
+
+    def _loss(self, p: np.ndarray, y: np.ndarray) -&gt; float:
+        eps = 1e-12
+        pc = np.clip(p, eps, 1.0 - eps)
+        bce = -np.mean(y * np.log(pc) + (1.0 - y) * np.log(1.0 - pc))
+        return bce + self.l2 * float(self.w @ self.w) + self.l1 * float(np.sum(np.abs(self.w)))
+
+    def predict_proba(self, X: np.ndarray) -&gt; np.ndarray:
+        return stable_sigmoid(np.asarray(X, dtype=float) @ self.w + self.b)
+
+    def predict(self, X: np.ndarray, threshold: float = 0.5) -&gt; np.ndarray:
+        return (self.predict_proba(X) &gt;= threshold).astype(int)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

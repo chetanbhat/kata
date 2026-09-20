@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 3.1 — Optimizers from scratch: SGD (+momentum/Nesterov), Adam. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="31-optimizers-from-scratch-sgd-momentum-nesterov-adam">3.1 — Optimizers from Scratch (SGD, Momentum, Nesterov, Adam)</h1>
+<p><strong>Builds on:</strong> 1.1 (the logistic GD loop), 2.1 (<code>.grad</code> consumption).
+<strong>Builds toward:</strong> 5.2 (the full adaptive lineage), Module 09 (you will
+compare these on real curves).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Plain SGD follows the gradient; momentum adds a velocity that damps
+oscillation along steep directions and accelerates along consistent ones
+(visualize a ravine: SGD bounces wall-to-wall, momentum rolls down the
+middle). Nesterov evaluates the gradient <em>after</em> the momentum step — a
+lookahead that corrects overshoot. Adam keeps per-parameter step sizes from
+moment estimates: <code>m</code> (direction, like momentum) and <code>v</code> (scale, like
+RMSprop), with bias correction dividing out the zero-initialization
+transient (<code>m/(1−β₁ᵗ)</code>). The bias-correction test is exact for a reason:
+it is the one line everyone re-derives wrong.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Momentum: <code>v ← μv + g; p ← p − lr·v</code>. Effective step grows <code>1/(1−μ)×</code>
+  along persistent directions — which is why momentum needs a <em>smaller</em> lr
+  than intuition suggests.</li>
+<li>Nesterov: <code>p ← p − lr·(g + μv)</code> — gradient at the lookahead point
+  approximates the future; provably optimal for smooth convex problems.</li>
+<li>Adam: <code>m̂ = m/(1−β₁ᵗ)</code>, <code>v̂ = v/(1−β₂ᵗ)</code>, <code>p ← p − lr·m̂/(√v̂+ε)</code>. Early
+  steps (<code>t</code> small) are dominated by the correction — without it, step
+  sizes start near zero and warm up spuriously.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>One Adam step on <code>p=1, g=2</code>: <code>m̂=2, v̂=4</code>, update <code>≈ lr·2/(2+ε) ≈ lr</code>.
+The test pins this. If your implementation moves any other amount, the
+correction or the denominator is wrong.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Ruder, "An overview of gradient descent optimization
+  algorithms" — <a href="https://arxiv.org/abs/1609.04747">arxiv.org/abs/1609.04747</a></li>
+<li>Recommended: Kingma &amp; Ba, "Adam" —
+  <a href="https://arxiv.org/abs/1412.6980">arxiv.org/abs/1412.6980</a></li>
+<li>Suggested: Sutskever et al., "On the importance of initialization and
+  momentum" — <a href="https://proceedings.mlr.press/v28/sutskever13.html">proceedings.mlr.press/v28/sutskever13</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/03_training_algos/optimizers.html">exercises/03_training_algos/optimizers.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

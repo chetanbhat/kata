@@ -1,0 +1,111 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 4.1 — Residual blocks (ResNet basic + bottleneck). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 4.1 — Residual blocks (ResNet basic + bottleneck).</h1><p class="meta">Reading: <a href="../../readings/04_architectures/resnet.html">readings/04_architectures/resnet.html</a> · Suite: <code>tests/test_04_architectures.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_04_architectures.py -q -k &quot;residual or bottleneck&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 4.1 — Residual blocks (ResNet basic + bottleneck).
+
+Goals: post-activation basic block; bottleneck reduce/expand; 1x1 projection
+shortcut on channel/stride mismatch; optional pre-activation ordering.
+
+Run: pytest tests/test_04_architectures.py -k &quot;residual or bottleneck&quot;
+Reading: readings/04_architectures/resnet.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class ResidualBlock(nn.Module):
+    &quot;&quot;&quot;Post-activation basic block: Conv-BN-ReLU-Conv-BN + shortcut, then ReLU.&quot;&quot;&quot;
+
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
+        super().__init__()
+        # TODO: Two conv-bn stages + projection shortcut when shapes mismatch.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class BottleneckBlock(nn.Module):
+    &quot;&quot;&quot;1x1 reduce -&gt; 3x3 -&gt; 1x1 expand; optionally pre-activation.&quot;&quot;&quot;
+
+    def __init__(self, in_channels: int, bottleneck_channels: int, out_channels: int,
+                 stride: int = 1, pre_activation: bool = False):
+        super().__init__()
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_residual_block_shape</code></li><li><code>test_bottleneck_shape_and_grad</code></li><li><code>test_residual_block_10_step_convergence</code></li><li><code>test_lstm_cell_and_layer_shapes</code></li><li><code>test_lstm_grad_flow</code></li><li><code>test_lstm_10_step_convergence</code></li><li><code>test_sdpa_shape_and_causal_masking</code></li><li><code>test_mha_shape_and_grad</code></li><li><code>test_rmsnorm_unit_scale</code></li><li><code>test_rope_preserves_shape_and_norm</code></li><li><code>test_decoder_block_shape_grad_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Residual blocks: post-activation basic block and pre-activation bottleneck.
+
+Shortcut projection (1x1 conv + BN) is applied whenever stride != 1 or the
+channel count changes, so F(x) + shortcut(x) always align.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class ResidualBlock(nn.Module):
+    &quot;&quot;&quot;Post-activation basic block: Conv-BN-ReLU-Conv-BN + shortcut, then ReLU.&quot;&quot;&quot;
+
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        return self.relu(out + self.shortcut(x))
+
+
+class BottleneckBlock(nn.Module):
+    &quot;&quot;&quot;1x1 reduce -&gt; 3x3 -&gt; 1x1 expand; optionally pre-activation
+    (BN-ReLU-Conv ordering, identity shortcut path kept clean).&quot;&quot;&quot;
+
+    def __init__(self, in_channels: int, bottleneck_channels: int, out_channels: int,
+                 stride: int = 1, pre_activation: bool = False):
+        super().__init__()
+        self.pre_activation = pre_activation
+        b = bottleneck_channels
+        self.conv1 = nn.Conv2d(in_channels, b, 1, bias=False)
+        self.conv2 = nn.Conv2d(b, b, 3, stride, padding=1, bias=False)
+        self.conv3 = nn.Conv2d(b, out_channels, 1, bias=False)
+        # One norm per conv; sized to the tensor each norm actually sees so
+        # every parameter participates in both pre- and post-activation modes.
+        sizes = (in_channels, b, b) if pre_activation else (b, b, out_channels)
+        self.norms = nn.ModuleList(nn.BatchNorm2d(s) for s in sizes)
+        self.relu = nn.ReLU(inplace=True)
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride, bias=False),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
+
+    def _block(self, x):
+        n0, n1, n2 = self.norms
+        if self.pre_activation:
+            out = self.conv1(self.relu(n0(x)))
+            out = self.conv2(self.relu(n1(out)))
+            return self.conv3(self.relu(n2(out)))
+        out = self.relu(n0(self.conv1(x)))
+        out = self.relu(n1(self.conv2(out)))
+        return n2(self.conv3(out))
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        out = self._block(x) + self.shortcut(x)
+        return out if self.pre_activation else self.relu(out)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

@@ -1,0 +1,58 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>03 · Training · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-03-advanced-training-algorithms-optimization">Module 03 — Advanced Training Algorithms &amp; Optimization</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Modules 01–02 built machines that <em>can</em> learn; this module is <em>how they
+learn</em>: the update rule (optimizers), the step-size policy (schedulers),
+and the loop that holds it together (clipping, accumulation, AMP). This is
+the highest-leverage module for practitioners — most "model didn't train"
+mysteries die here, not in architecture.</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Modules 01–02 (losses, <code>.grad</code> flow, layer mechanics).</li>
+<li>Guides §2, Story 4 (loss won't decrease).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Module 05 (the full optimizer lineage: why Adam exists, what AdamW fixed).</li>
+<li>Module 09 capstone (this loop becomes the training harness).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>SGD (1951, Robbins–Monro) → momentum (1964, Polyak) → adaptive methods
+(AdaGrad 2011 → RMSprop → Adam 2014) → decoupled decay (AdamW 2017). Each
+step relaxed an assumption: constant curvature, constant scale, honest
+regularization. Schedulers tell the parallel story for step sizes: decay →
+restarts → warmup (the large-batch era).</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="optimizers.html">optimizers.md</a></td>
+<td><code>exercises/03_training_algos/optimizers.py</code></td>
+<td>Momentum, Nesterov, Adam's bias correction</td>
+</tr>
+<tr>
+<td><a href="schedulers.html">schedulers.md</a></td>
+<td><code>exercises/03_training_algos/schedulers.py</code></td>
+<td>Restarts and warmup-stable-decay</td>
+</tr>
+<tr>
+<td><a href="training_loop.html">training_loop.md</a></td>
+<td><code>exercises/03_training_algos/training_loop.py</code></td>
+<td>Clipping, accumulation, AMP in one loop</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Ruder, "An overview of gradient descent optimization
+  algorithms" — <a href="https://arxiv.org/abs/1609.04747">arxiv.org/abs/1609.04747</a></li>
+<li>Recommended: Kingma &amp; Ba, "Adam" — <a href="https://arxiv.org/abs/1412.6980">arxiv.org/abs/1412.6980</a></li>
+<li>Suggested: Micikevicius et al., "Mixed Precision Training" —
+  <a href="https://arxiv.org/abs/1710.03741">arxiv.org/abs/1710.03741</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

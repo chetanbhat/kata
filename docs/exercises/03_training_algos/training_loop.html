@@ -1,0 +1,82 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 3.3 — Modular training loop. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 3.3 — Modular training loop.</h1><p class="meta">Reading: <a href="../../readings/03_training_algos/training_loop.html">readings/03_training_algos/training_loop.html</a> · Suite: <code>tests/test_03_training.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_03_training.py -q -k &quot;train_loop&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 3.3 — Modular training loop.
+
+Goals: mini-batching, grad clipping by norm, accumulation steps, AMP hooks
+that no-op on CPU, optional scheduler stepping; return loss history.
+
+Run: pytest tests/test_03_training.py -k &quot;train_loop or clipping or accumulation&quot;
+Reading: readings/03_training_algos/training_loop.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def train_loop(model: nn.Module, loss_fn, optimizer, X: torch.Tensor, y: torch.Tensor,
+               epochs: int = 10, batch_size: int | None = None, max_grad_norm=None,
+               accumulation_steps: int = 1, use_amp: bool = False, scheduler=None,
+               device: str = &quot;cpu&quot;) -&gt; dict:
+    &quot;&quot;&quot;Train `model` on (X, y); return {&#x27;loss&#x27;: [per-epoch mean loss]}.&quot;&quot;&quot;
+    # TODO: Implement this.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_sgd_exact_step_and_shape_preserved</code></li><li><code>test_sgd_10_step_convergence</code></li><li><code>test_sgd_momentum_and_nesterov_converge</code></li><li><code>test_adam_bias_correction_single_step</code></li><li><code>test_adam_10_step_convergence</code></li><li><code>test_zero_grad_clears</code></li><li><code>test_cosine_warm_restarts_shape_of_schedule</code></li><li><code>test_cosine_restart_period_growth</code></li><li><code>test_warmup_stable_decay_phases</code></li><li><code>test_train_loop_10_step_convergence_with_all_mechanics</code></li><li><code>test_train_loop_clipping_bounds_grad_norm</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Modular training-loop utility.
+
+Supports gradient clipping by global norm, gradient accumulation over
+micro-batches, mixed-precision (AMP) scaling hooks, and optional scheduler
+stepping. On CPU-only hosts AMP degrades gracefully to full precision.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+def _grad_scaler(use_amp: bool, device: str):
+    if use_amp and str(device).startswith(&quot;cuda&quot;) and torch.cuda.is_available():
+        return torch.amp.GradScaler(&quot;cuda&quot;)
+    return None  # CPU: AMP hooks become no-ops
+
+
+def train_loop(model: nn.Module, loss_fn, optimizer, X: torch.Tensor, y: torch.Tensor,
+               epochs: int = 10, batch_size: int | None = None, max_grad_norm: float | None = None,
+               accumulation_steps: int = 1, use_amp: bool = False, scheduler=None,
+               device: str = &quot;cpu&quot;) -&gt; dict:
+    &quot;&quot;&quot;Full training loop over (X, y); returns {&#x27;loss&#x27;: [per-epoch means]}.&quot;&quot;&quot;
+    model.to(device)
+    scaler = _grad_scaler(use_amp, device)
+    amp_dtype = torch.float16 if str(device).startswith(&quot;cuda&quot;) else torch.bfloat16
+    n = X.shape[0]
+    bs = batch_size or n
+    history = {&quot;loss&quot;: []}
+
+    for _ in range(epochs):
+        model.train()
+        optimizer.zero_grad()
+        epoch_loss, seen = 0.0, 0
+        for start in range(0, n, bs * accumulation_steps):
+            micro_losses = []
+            for m in range(start, min(start + bs * accumulation_steps, n), bs):
+                xb, yb = X[m:m + bs].to(device), y[m:m + bs].to(device)
+                with torch.amp.autocast(device_type=&quot;cpu&quot; if device == &quot;cpu&quot; else &quot;cuda&quot;,
+                                        enabled=scaler is not None, dtype=amp_dtype):
+                    loss = loss_fn(model(xb), yb) / accumulation_steps
+                if scaler is not None:
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+                micro_losses.append(float(loss.detach()) * accumulation_steps)
+            if max_grad_norm is not None:
+                if scaler is not None:
+                    scaler.unscale_(optimizer) if hasattr(scaler, &quot;unscale_&quot;) else None
+                nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+            if scaler is not None:
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                optimizer.step()
+            optimizer.zero_grad()
+            epoch_loss += sum(micro_losses)
+            seen += len(micro_losses)
+        if scheduler is not None:
+            scheduler.step()
+        history[&quot;loss&quot;].append(epoch_loss / max(1, seen))
+    return history
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

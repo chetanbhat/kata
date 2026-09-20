@@ -1,0 +1,61 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>01 · Foundations · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-01-foundations-classical-ml">Module 01 — Foundations &amp; Classical ML</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Everything above this module is an application of it. Regression is the
+simplest learning machine (fit parameters to data); classification is
+regression pushed through a squashing function plus a probabilistic loss;
+perceptrons and MLPs stack those units into universal approximators; loss
+functions decide what "wrong" means. If Modules 4–8 are the city, this is
+the bedrock and the plumbing.</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li><code>guides/01_prereqs_math.md</code> (matmul shapes, chain rule, softmax by hand).</li>
+<li>NumPy fluency: broadcasting, <code>einsum</code>-level comfort with axes.</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Module 02 (autograd mechanizes the manual gradients you write here).</li>
+<li>Module 03 (optimizers generalize the GD loop in <code>LogisticRegression.fit</code>).</li>
+<li>Module 08 (cross-entropy returns as the VAE/GAN/diffusion workhorse).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>1958: the perceptron learns — then Minsky &amp; Papert (1969) show a single
+layer can't do XOR, freezing the field. 1986: backprop (Rumelhart, Hinton
+&amp; Williams) trains multi-layer nets and thaws it. The lesson: <em>representational
+capacity means nothing without a training procedure</em> — a theme that recurs
+in Modules 05, 07, and 08.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="linear_logistic.html">linear_logistic.md</a></td>
+<td><code>exercises/01_foundations/linear_logistic.py</code></td>
+<td>Closed form vs iteration; why probabilities need squashing</td>
+</tr>
+<tr>
+<td><a href="perceptron_mlp.html">perceptron_mlp.md</a></td>
+<td><code>exercises/01_foundations/perceptron_mlp.py</code></td>
+<td>What depth buys; how gradients flow by hand</td>
+</tr>
+<tr>
+<td><a href="losses.html">losses.md</a></td>
+<td><code>exercises/01_foundations/losses.py</code></td>
+<td>What "wrong" means; why naive code overflows</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Hastie, Tibshirani &amp; Friedman, <em>Elements of Statistical
+  Learning</em>, Ch. 3–4 — <a href="https://web.stanford.edu/~hastie/ElemStatLearn/">web.stanford.edu/~hastie/ElemStatLearn</a></li>
+<li>Recommended: Goodfellow, Bengio &amp; Courville, <em>Deep Learning</em>, Ch. 5–6 —
+  <a href="https://www.deeplearningbook.org">deeplearningbook.org</a></li>
+<li>Suggested: Karpathy, "Neural Networks: Zero to Hero" (builds the same
+  objects from nothing) — <a href="https://github.com/karpathy/nn-zero-to-hero">github.com/karpathy/nn-zero-to-hero</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

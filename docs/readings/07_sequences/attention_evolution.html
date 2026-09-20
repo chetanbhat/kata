@@ -1,0 +1,41 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 7.2 — Attention variations: ALiBi, sliding window, GQA/MQA. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="72-attention-variations-alibi-windows-mqagqa">7.2 — Attention Variations (ALiBi, Windows, MQA/GQA)</h1>
+<p><strong>Builds on:</strong> 4.3 (MHA + causal masking — now vary positions and heads).
+<strong>Builds toward:</strong> reading real LLM code (GQA + RoPE/ALiBi + windows =
+  LLaMA/Mistral inference stacks).</p>
+<h2 id="introduction">Introduction</h2>
+<p>Full attention has two taxes: <strong>positions</strong> (absolute embeddings don't
+extrapolate past training length) and <strong>memory</strong> (the KV cache grows with
+heads × length, bottlenecking inference). <strong>ALiBi</strong> (2022) answers positions
+with almost nothing: subtract <code>slope·distance</code> from scores — a linear
+penalty, zero parameters, and models extrapolate to 2–4× training length.
+Slopes are geometric (<code>2^(−8/n·i)</code>), giving heads different effective
+windows. <strong>Sliding windows</strong> hard-cap the past (Mistral): O(T·w) instead of
+O(T²), exact mask in the exercise. <strong>MQA → GQA</strong> (2019→2023) answers memory:
+share KV heads across query groups (MQA = one KV head; GQA = e.g. 8 Q
+heads per KV head), repeating KV to match. Quality barely moves; cache
+shrinks ~8×. Architecture follows the bottleneck — here, memory bandwidth.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>ALiBi bias <code>[i,j] = −m·max(0, i−j)</code>, <code>-inf</code> above diagonal: recency as an
+  additive prior, causal by construction.</li>
+<li>GQA <code>repeat_interleave(H/KV)</code>: the <em>only</em> code change vs MHA — grouping
+  is a reshape, not a new operation (read the forward pass with that lens).</li>
+<li>Sliding window + causal: attend <code>j ≤ i</code>, <code>i−j ≤ w</code>. Composing two
+  constraints in one mask is the exercise's real skill.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>ALiBi slope <code>m=½</code> at distance 10 penalizes <code>e^−5 ≈ 1/148</code> — effectively a
+soft window per head, hard-coded. Compare with the sliding mask: same
+spirit, zero vs learned flexibility. Extrapolation tests (train 1k, eval
+4k) separate position schemes the way the suite's corruption test
+separates masks.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Press et al., "Train Short, Test Long (ALiBi)" —
+  <a href="https://arxiv.org/abs/2108.12409">arxiv.org/abs/2108.12409</a></li>
+<li>Recommended: Ainslie et al., "GQA: Training Generalized Multi-Query
+  Transformers" — <a href="https://arxiv.org/abs/2305.13245">arxiv.org/abs/2305.13245</a></li>
+<li>Suggested: Dao et al., "FlashAttention" (the IO-aware complement:
+  exact attention, tiled) —
+  <a href="https://arxiv.org/abs/2205.14135">arxiv.org/abs/2205.14135</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/07_sequences/attention_evolution.html">exercises/07_sequences/attention_evolution.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

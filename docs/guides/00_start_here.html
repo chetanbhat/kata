@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>00 start here · ML Kata</title><link rel="stylesheet" href="../style.css"></head><body><nav class="top"><a href="../index.html">Kata</a><a href="../guides/00_start_here.html">Guides</a><a href="../readings.html">Readings</a><a href="../exercises.html">Exercises</a><a href="../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="start-here-how-to-use-this-gym-15-min-read">Start here: how to use this gym (15 min read)</h1>
+<p>This repo is a <strong>red → green</strong> practice gym. The tests evaluate <em>your</em> code
+by default (<code>exercises/</code>). An untouched checkout is mostly red — that is the
+starting line, not a failure.</p>
+<h2 id="the-loop">The loop</h2>
+<ol>
+<li><strong>Read the guide first.</strong> <code>guides/01_prereqs_math.md</code> covers the math you
+   need; each exercise stub lists its prerequisites at the top.</li>
+<li><strong>Implement one exercise</strong> in <code>exercises/</code>.</li>
+<li><strong>Run its suite:</strong> <code>.venv/bin/python -m pytest tests/test_01_foundations.py -q</code></li>
+<li><strong>Debug with</strong> <code>guides/02_debugging.md</code> (shape errors, NaNs, dead grads,
+   flat loss — each maps to one of the S/G/C invariants below).</li>
+<li><strong>Peek at <code>solutions/</code> only after your version passes</strong> — or after 45
+   honest minutes. Comparing approaches is where the learning sticks.</li>
+<li><strong>Track progress:</strong> <code>.venv/bin/python progress.py</code> prints a per-module
+   PASS/FAIL table against your code.</li>
+</ol>
+<h2 id="the-two-modes">The two modes</h2>
+<pre><code class="language-bash">.venv/bin/python -m pytest tests/ -q             # default: YOUR code (exercises/)
+KATA_IMPL=solutions .venv/bin/python -m pytest tests/ -q   # reference health check
+</code></pre>
+<p><code>tests/test_00_stubs.py</code> always checks that untouched stubs raise
+<code>NotImplementedError</code> — implement a function and its stub test flips to
+failure until the real suite passes. That flip is progress.</p>
+<h2 id="the-three-invariants-sgc">The three invariants (S/G/C)</h2>
+<p>Every suite enforces the same discipline:</p>
+<ul>
+<li><strong>S — Shape.</strong> Tensors must scale with the batch: <code>(B, C, H, W)</code> for
+  images, <code>(B, T, D)</code> for sequences. When a test fails on shape, draw the
+  diagram: write each tensor's shape on paper before you touch code.</li>
+<li><strong>G — Gradient flow.</strong> After <code>.backward()</code>, every parameter needs a
+  non-<code>None</code>, non-zero <code>.grad</code>. A <code>None</code> grad means your op detached from
+  the graph; an all-zero grad means a dead path (e.g. a matrix that only
+  ever sees a zero input).</li>
+<li><strong>C — Convergence.</strong> A 10-step loop must strictly decrease the loss. If
+  yours doesn't, the debugging guide's checklist applies in order: (1) is
+  the loss even connected to the parameters? (2) is the lr sane? (3) is the
+  gradient correct (finite-difference check)?</li>
+</ul>
+<h2 id="suggested-order-zero-to-hero-path">Suggested order (zero-to-hero path)</h2>
+<ol>
+<li><code>guides/01_prereqs_math.md</code> — numpy, chain rule, softmax/CE by hand.</li>
+<li>Module 01 (foundations) → Module 02 (autograd, layers).</li>
+<li>Module 03 (optimizers) → Module 09 (capstone: your first end-to-end run).</li>
+<li>Modules 04, 07 (architectures, sequences) → 05, 06 (optimization history).</li>
+<li>Module 08 (generative) with <code>RESEARCH_LOG.md</code> open beside you.</li>
+</ol>
+<p>Finish with the capstone re-run: train the same task with Adam vs SGD and
+explain the curves before looking at anyone else's explanation.</p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

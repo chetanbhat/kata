@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>07 · Sequences · overview · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="module-07-sequence-modeling-history-rnn-attention-ssm">Module 07 — Sequence Modeling History (RNN → Attention → SSM)</h1>
+<h2 id="where-this-sits">Where this sits</h2>
+<p>Module 04 built one LSTM and one Transformer block; this module is the
+<em>forty-year argument</em> around them: recurrence can't remember (fixed by
+gates), attention remembers everything at quadratic cost (fixed by
+positions, grouping, windows), and state-space models try to have both.
+The full "wrong turns" museum in one hallway.</p>
+<h2 id="builds-on">Builds on</h2>
+<ul>
+<li>Module 04 (LSTM cell, MHA mechanics — now vary them).</li>
+<li>Module 02 (norms/scans reuse the same tensor discipline).</li>
+</ul>
+<h2 id="builds-toward">Builds toward</h2>
+<ul>
+<li>Reading modern LLM codebases (GQA + RoPE + sliding windows = Mistral).</li>
+<li>Module 08 (diffusion backbones inherit these sequence choices).</li>
+</ul>
+<h2 id="the-arc">The arc</h2>
+<p>Elman (1990) → vanishing analysis (Bengio 1994) → LSTM (1997) → GRU (2014)
+→ seq2seq bottleneck → attention (2014–17) → "what does position cost?"
+(RoPE/ALiBi) → "what does the KV cache cost?" (MQA/GQA) → "can recurrence
+come back?" (S4/Mamba). Each era optimizes what the previous era made
+expensive.</p>
+<h2 id="exercises">Exercises</h2>
+<table>
+<thead>
+<tr>
+<th>Note</th>
+<th>Exercise</th>
+<th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="rnn_history.html">rnn_history.md</a></td>
+<td><code>exercises/07_sequences/rnn_history.py</code></td>
+<td>Vanishing, measured; GRU's merged gate</td>
+</tr>
+<tr>
+<td><a href="attention_evolution.html">attention_evolution.md</a></td>
+<td><code>exercises/07_sequences/attention_evolution.py</code></td>
+<td>ALiBi, windows, MQA/GQA</td>
+</tr>
+<tr>
+<td><a href="ssm.html">ssm.md</a></td>
+<td><code>exercises/07_sequences/ssm.py</code></td>
+<td>Discretization + selective scan</td>
+</tr>
+</tbody>
+</table>
+<h2 id="section-readings">Section readings</h2>
+<ul>
+<li>Required: Olah, "Understanding LSTM Networks" —
+  <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/">colah.github.io/posts/2015-08-Understanding-LSTMs</a></li>
+<li>Recommended: Gu et al., "Mamba" —
+  <a href="https://arxiv.org/abs/2312.00752">arxiv.org/abs/2312.00752</a></li>
+<li>Suggested: Lipton et al., "A Critical Review of RNNs" —
+  <a href="https://arxiv.org/abs/1506.00019">arxiv.org/abs/1506.00019</a></li>
+</ul></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

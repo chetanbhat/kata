@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>02 debugging · ML Kata</title><link rel="stylesheet" href="../style.css"></head><body><nav class="top"><a href="../index.html">Kata</a><a href="../guides/00_start_here.html">Guides</a><a href="../readings.html">Readings</a><a href="../exercises.html">Exercises</a><a href="../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="debugging-guide-read-the-failure-not-the-code">Debugging guide: read the failure, not the code</h1>
+<p>Every failure in this gym is one of four stories. Identify the story first.</p>
+<h2 id="story-1-shape-mismatch-s-invariant">Story 1: shape mismatch (S invariant)</h2>
+<p>Symptom: <code>matmul</code> / broadcasting <code>RuntimeError</code> with two shapes.
+Response: <strong>draw the diagram.</strong> For an MLP layer write, on paper:</p>
+<pre><code>X: (B, d_in)  @  W.T: (d_in, d_out)  +  b: (d_out,)  -&gt;  (B, d_out)
+</code></pre>
+<p>90% of shape bugs are a missing transpose or a bias shaped <code>(d_out, 1)</code>
+instead of <code>(d_out,)</code>. Fix the diagram, then the code. <code>einops</code>-style
+comments (<code># (B, T, H, d)</code>) above each line prevent recurrence.</p>
+<h2 id="story-2-nan-inf-loss">Story 2: NaN / inf loss</h2>
+<p>Checklist in order:
+1. <strong>Log of zero:</strong> any <code>log(p)</code> with <code>p = 0</code>? Clip probs, use
+   log-sum-exp (subtract the max first — guides/01, §3).
+2. <strong>lr too high:</strong> loss explodes after a few steps? Divide lr by 10; if
+   the explosion point moves later, it was the lr.
+3. <strong>Softmax overflow:</strong> raw logits in the hundreds? Normalize inputs
+   (StandardScaler on train stats only — Module 09).
+4. Bisect: run 3 steps printing loss each step; the step where it jumps
+   tells you which op overflowed.</p>
+<h2 id="story-3-grad-is-none-or-all-zero-g-invariant">Story 3: grad is None or all-zero (G invariant)</h2>
+<ul>
+<li><code>None</code>: the tensor is detached from the graph. Culprits: <code>.detach()</code>,
+  <code>torch.no_grad()</code> around the forward pass, in-place ops on needed
+  tensors, or building the loss from <code>.data</code>/numpy conversions.</li>
+<li>All-zero: a dead path. Classic: a weight matrix whose only input is an
+  all-zero hidden state (first RNN step from <code>h = 0</code>), or ReLU killing
+  every activation (dead neurons — check activation stats, lower the lr).</li>
+<li>Forgot <code>optimizer.zero_grad()</code>? Then grads <em>accumulate</em> — loss falls
+  then oscillates. If your loop has no <code>zero_grad</code>, add it.</li>
+</ul>
+<p>Finite-difference check (the NumPy analogue): perturb one parameter by
+<code>1e-5</code>; if the loss doesn't move, that parameter is decorative.</p>
+<h2 id="story-4-loss-wont-decrease-c-invariant">Story 4: loss won't decrease (C invariant)</h2>
+<ol>
+<li>Is the loss connected to the parameters at all? (Story 3 first.)</li>
+<li>Is the gradient <em>correct</em>? Compare against finite differences on a
+   batch of 4. Wrong sign = bug in the backward pass.</li>
+<li>Is the lr sane? Try <code>lr × 10</code> and <code>lr / 10</code> for 10 steps each; one of
+   them should move faster. If neither moves, the bug is in 1–2.</li>
+<li>Is the task learnable at this scale? Overfit ONE batch first (loss
+   should hit ~0). If it can't memorize 4 samples, nothing else matters.</li>
+</ol>
+<h2 id="reading-learning-curves-capstone-skill">Reading learning curves (capstone skill)</h2>
+<pre><code>loss
+ ^   train ___
+ |           \___
+ |               \____  &lt;- healthy: both fall, small gap
+ |   val    ___
+ |             \___  ___
+ +--------------------------&gt; epoch
+</code></pre>
+<ul>
+<li><strong>Gap widens, train keeps falling:</strong> overfitting. More data, dropout /
+  weight decay, smaller model, early stopping.</li>
+<li><strong>Both flat and high:</strong> underfitting or broken optimization — go back to
+  Story 4, do NOT regularize.</li>
+<li><strong>Val rises while train falls:</strong> stop where val was lowest (early
+  stopping); the checkpoint <em>is</em> the regularizer.</li>
+<li><strong>Jagged:</strong> batch too small or lr too high; smooth with larger batches
+  or lr decay, not with a bigger model.</li>
+</ul>
+<h2 id="the-10-minute-rule">The 10-minute rule</h2>
+<p>If a single test resists for 10 minutes, shrink the problem: batch of 4,
+hidden size 2, one step, print everything. Bugs that survive scale rarely
+survive shrinking.</p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

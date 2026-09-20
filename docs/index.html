@@ -1,0 +1,278 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>ML practice gym · ML Kata</title><link rel="stylesheet" href="style.css"></head><body><nav class="top"><a href="index.html">Kata</a><a href="guides/00_start_here.html">Guides</a><a href="readings.html">Readings</a><a href="exercises.html">Exercises</a><a href="RESEARCH_LOG.html">Research log</a></nav><main><h1 id="kata-test-driven-ml-practice-workspace">Kata — Test-Driven ML Practice Workspace</h1>
+<p>Browse everything (guides, readings, exercises, reference) at
+<strong><a href="https://chetanbhat.github.io/kata/">chetanbhat.github.io/kata</a></strong> —
+code runs locally; each exercise page shows the one command that validates it.</p>
+<p>Build ML from raw math to modern architectures through code. Every exercise
+has a stub (<code>exercises/</code>), a reference implementation (<code>solutions/</code>), and a
+pytest suite (<code>tests/</code>) enforcing three invariants:</p>
+<ul>
+<li><strong>S</strong>hape — tensor dims scale and match across batches (<code>B,C,H,W</code> / <code>B,T,D</code>).</li>
+<li><strong>G</strong>radient flow — after <code>.backward()</code>, every parameter has a non-zero,
+  non-<code>None</code> <code>.grad</code> (NumPy modules use finite-difference probes instead).</li>
+<li><strong>C</strong>onvergence — a 10-step mock optimization loop strictly decreases loss.</li>
+</ul>
+<h2 id="setup">Setup</h2>
+<pre><code class="language-bash">export UV_CACHE_DIR=/tmp/uv-cache   # only if the shared uv cache is read-only
+uv venv
+uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+uv pip install --python .venv/bin/python numpy pytest matplotlib
+</code></pre>
+<p><code>requirements.txt</code> pins the same set (<code>torch</code> via the CPU index).</p>
+<h2 id="learning-path-start-here-if-youre-new">Learning path (start here if you're new)</h2>
+<ol>
+<li>Read <code>guides/00_start_here.md</code> (the loop), then <code>guides/01_prereqs_math.md</code>.</li>
+<li>Work Modules 01 → 02 → 03 → <strong>09 Capstone</strong> (your first end-to-end run),
+   then 04, 07, 05, 06, 08 with <code>RESEARCH_LOG.md</code> open.</li>
+<li>The MLP stub (<code>exercises/01_foundations/perceptron_mlp.py</code>) is the
+   scaffolding exemplar: prerequisites, worked example, graduated TODOs,
+   hints. Other stubs are terse by design — use <code>guides/02_debugging.md</code>
+   when stuck (45 minutes of honest effort before reading <code>solutions/</code>).</li>
+</ol>
+<h2 id="how-to-practice">How to practice</h2>
+<p>Tests evaluate <strong>your code</strong> by default (<code>exercises/</code>). An untouched
+checkout is red — implement the <code># TODO</code> markers and turn it green:</p>
+<pre><code class="language-bash">.venv/bin/python -m pytest tests/ -q             # your code (KATA_IMPL=exercises)
+.venv/bin/python -m pytest tests/test_01_foundations.py -q
+.venv/bin/python progress.py                     # per-module PASS/FAIL table
+KATA_IMPL=solutions .venv/bin/python -m pytest tests/ -q   # reference health check
+</code></pre>
+<p>To poke at a stub interactively, import it the way the tests do (the
+leading-digit dirs need <code>import_module</code>, not plain <code>import</code>):</p>
+<pre><code class="language-python">from importlib import import_module
+m = import_module(&quot;exercises.01_foundations.losses&quot;)
+</code></pre>
+<h2 id="tracker">Tracker</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Exercise</th>
+<th>Core math objective</th>
+<th>Invariants</th>
+<th>Run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1.1</td>
+<td><code>exercises/01_foundations/linear_logistic.py</code></td>
+<td>OLS closed form <code>(X'X+λI)^{-1}X'y</code>; vectorized L1/L2 logistic GD</td>
+<td>S, G(fd), C</td>
+<td><code>pytest tests/test_01_foundations.py -k "ols or ridge or logistic or sigmoid"</code></td>
+</tr>
+<tr>
+<td>1.2</td>
+<td><code>exercises/01_foundations/perceptron_mlp.py</code></td>
+<td>Rosenblatt updates; backprop with ReLU/GeLU/Sigmoid/Tanh</td>
+<td>S, G(fd), C</td>
+<td><code>pytest tests/test_01_foundations.py -k "perceptron or mlp or activation or numerical"</code></td>
+</tr>
+<tr>
+<td>1.3</td>
+<td><code>exercises/01_foundations/losses.py</code></td>
+<td>MSE / clipped BCE / log-sum-exp cross-entropy</td>
+<td>S, stability</td>
+<td><code>pytest tests/test_01_foundations.py -k "mse or bce or cross_entropy or stable"</code></td>
+</tr>
+<tr>
+<td>2.1</td>
+<td><code>exercises/02_deep_learning/autograd.py</code></td>
+<td>Dynamic graph + chain rule in reverse-topological order</td>
+<td>G(exact), C</td>
+<td><code>pytest tests/test_02_deep_learning.py -k autograd</code></td>
+</tr>
+<tr>
+<td>2.2</td>
+<td><code>exercises/02_deep_learning/layers.py</code></td>
+<td>He/Xavier init; running-stat BatchNorm; LayerNorm; inverted Dropout</td>
+<td>S, G, C</td>
+<td><code>pytest tests/test_02_deep_learning.py -k "linear or norm or dropout"</code></td>
+</tr>
+<tr>
+<td>2.3</td>
+<td><code>exercises/02_deep_learning/conv2d.py</code></td>
+<td>Unfold + matmul forward; stride/pad/dilation; exact match to <code>nn.Conv2d</code></td>
+<td>S, G, C</td>
+<td><code>pytest tests/test_02_deep_learning.py -k conv</code></td>
+</tr>
+<tr>
+<td>3.1</td>
+<td><code>exercises/03_training_algos/optimizers.py</code></td>
+<td>SGD momentum/Nesterov; Adam moments + bias correction</td>
+<td>S, G, C</td>
+<td><code>pytest tests/test_03_training.py -k "sgd or adam or zero_grad"</code></td>
+</tr>
+<tr>
+<td>3.2</td>
+<td><code>exercises/03_training_algos/schedulers.py</code></td>
+<td>Cosine restarts (<code>T_mult</code> growth); warmup→stable→cosine-decay</td>
+<td>schedule shape</td>
+<td><code>pytest tests/test_03_training.py -k "cosine or warmup"</code></td>
+</tr>
+<tr>
+<td>3.3</td>
+<td><code>exercises/03_training_algos/training_loop.py</code></td>
+<td>Clipping by norm; accumulation; AMP hooks (CPU no-op); scheduler stepping</td>
+<td>C, finiteness</td>
+<td><code>pytest tests/test_03_training.py -k "train_loop"</code></td>
+</tr>
+<tr>
+<td>4.1</td>
+<td><code>exercises/04_architectures/resnet.py</code></td>
+<td>Post-activation basic block; pre/post bottleneck; 1×1 projection</td>
+<td>S, G, C</td>
+<td><code>pytest tests/test_04_architectures.py -k "residual or bottleneck"</code></td>
+</tr>
+<tr>
+<td>4.2</td>
+<td><code>exercises/04_architectures/lstm.py</code></td>
+<td>f/i/o/g gates from fused matmuls; unrolled sequence layer</td>
+<td>S, G, C</td>
+<td><code>pytest tests/test_04_architectures.py -k lstm</code></td>
+</tr>
+<tr>
+<td>4.3</td>
+<td><code>exercises/04_architectures/transformer.py</code></td>
+<td>Masked SDPA; causal MHA; RMSNorm; RoPE; pre-norm decoder block</td>
+<td>S, G, C (+causality, norm-preservation)</td>
+<td><code>pytest tests/test_04_architectures.py -k "attention or mha or rmsnorm or rope or decoder"</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>G(fd)</code> = finite-difference gradient probe (NumPy has no autograd).
+<code>tests/test_00_stubs.py</code> verifies untouched stubs raise <code>NotImplementedError</code>;
+<code>tests/test_impl_selector.py</code> pins the <code>KATA_IMPL</code> loader contract.</p>
+<p>| 9 | <code>exercises/09_capstone/end_to_end.py</code> | Two-moons end to end: splits, train-only scaling, curves, overfitting diagnosis, early stopping, checkpoint, test-once | end-to-end | <code>pytest tests/test_09_capstone.py -q</code> |</p>
+<h2 id="guides">Guides</h2>
+<table>
+<thead>
+<tr>
+<th>Guide</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>guides/00_start_here.md</code></td>
+<td>The red→green loop, S/G/C invariants, suggested order</td>
+</tr>
+<tr>
+<td><code>guides/01_prereqs_math.md</code></td>
+<td>Numpy/broadcasting, chain rule + worked neuron, softmax/CE by hand, bias–variance</td>
+</tr>
+<tr>
+<td><code>guides/02_debugging.md</code></td>
+<td>Four failure stories (shape, NaN, dead grad, flat loss) + reading curves</td>
+</tr>
+</tbody>
+</table>
+<h2 id="readings-readings">Readings (<code>readings/</code>)</h2>
+<p>Every section and exercise has a pre-digested note in the matching
+<code>readings/&lt;section&gt;/</code> folder: introduction, hierarchy placement (builds
+on → builds toward), intuition with the key math, and
+required / recommended / suggested sources with links. Each exercise stub
+header points at its note (<code>Reading: readings/...</code>). Section overviews
+(<code>readings/&lt;section&gt;/README.md</code>) give the module arc and section-level
+sources. All prose is rewritten originally for this repo — follow the
+links for the canonical papers, posts, and textbook chapters.</p>
+<h2 id="advanced-track-modules-58-history-of-wrong-turns">Advanced track (Modules 5–8): history of wrong turns</h2>
+<p>Each module studies a lineage — what was tried, what failed, what replaced
+it — with variations side by side so you feel <em>why</em> the fix exists. The
+running notes live in <a href="RESEARCH_LOG.html">RESEARCH_LOG.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Exercise</th>
+<th>Variations tracked</th>
+<th>Run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5.1</td>
+<td><code>exercises/05_optimization/second_order.py</code></td>
+<td>Damped Newton vs L-BFGS (memory, line search)</td>
+<td><code>pytest tests/test_05_optimization.py -k "newton or lbfgs"</code></td>
+</tr>
+<tr>
+<td>5.2</td>
+<td><code>exercises/05_optimization/adaptive_history.py</code></td>
+<td>AdaGrad → RMSprop → AdamW (decoupled) → Lion → Lookahead wrapper</td>
+<td><code>pytest tests/test_05_optimization.py -k "adagrad or rmsprop or adamw or lion or lookahead"</code></td>
+</tr>
+<tr>
+<td>5.3</td>
+<td><code>exercises/05_optimization/sharpness.py</code></td>
+<td>SAM perturb-then-update vs SWA iterate averaging</td>
+<td><code>pytest tests/test_05_optimization.py -k "sam or swa"</code></td>
+</tr>
+<tr>
+<td>6.1</td>
+<td><code>exercises/06_regularization/regularizers.py</code></td>
+<td>Dropout → DropConnect → Stochastic Depth; label smoothing; Mixup</td>
+<td><code>pytest tests/test_06_regularization.py -k "dropconnect or stochastic or smoothing or mixup"</code></td>
+</tr>
+<tr>
+<td>6.2</td>
+<td><code>exercises/06_regularization/normalization.py</code></td>
+<td>BatchNorm story → WeightNorm → SpectralNorm; clipping → gradient penalty</td>
+<td><code>pytest tests/test_06_regularization.py -k "weightnorm or spectral or penalty"</code></td>
+</tr>
+<tr>
+<td>7.1</td>
+<td><code>exercises/07_sequences/rnn_history.py</code></td>
+<td>Elman (vanishing, measured) → LSTM (mod. 4) → GRU</td>
+<td><code>pytest tests/test_07_sequences.py -k "rnn or gru or vanishing"</code></td>
+</tr>
+<tr>
+<td>7.2</td>
+<td><code>exercises/07_sequences/attention_evolution.py</code></td>
+<td>Absolute → ALiBi; MHA → MQA → GQA; sliding window</td>
+<td><code>pytest tests/test_07_sequences.py -k "alibi or window or gqa"</code></td>
+</tr>
+<tr>
+<td>7.3</td>
+<td><code>exercises/07_sequences/ssm.py</code></td>
+<td>ZOH discretization; fixed SSM → selective (Mamba-lite) scan</td>
+<td><code>pytest tests/test_07_sequences.py -k "ssm or discretize"</code></td>
+</tr>
+<tr>
+<td>8.1</td>
+<td><code>exercises/08_generative/vae.py</code></td>
+<td>ELBO + beta annealing knob (posterior-collapse handle)</td>
+<td><code>pytest tests/test_08_generative.py -k "vae or kl or elbo"</code></td>
+</tr>
+<tr>
+<td>8.2</td>
+<td><code>exercises/08_generative/gan.py</code></td>
+<td>Minimax → non-saturating; WGAN-GP; spectral-normed D</td>
+<td><code>pytest tests/test_08_generative.py -k "gan or wgan or spectral_normalize"</code></td>
+</tr>
+<tr>
+<td>8.3</td>
+<td><code>exercises/08_generative/diffusion.py</code></td>
+<td>Linear vs cosine schedule; DDPM vs DDIM; classifier-free guidance</td>
+<td><code>pytest tests/test_08_generative.py -k "diffusion or ddpm or ddim or guidance"</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="static-site-docs">Static site (<code>docs/</code>)</h2>
+<p><code>docs/</code> is pre-built HTML served by GitHub Pages — no backend, no JS
+frameworks, no external assets. Rebuild after editing content:</p>
+<pre><code class="language-bash">.venv/bin/python site/build.py   # regenerates docs/ (73 pages)
+</code></pre>
+<h2 id="layout">Layout</h2>
+<pre><code class="language-text">kata/
+├── docs/       pre-built static site (GitHub Pages serves /docs)
+├── site/build.py  generator (needs `pip install markdown`, build-time only)
+├── exercises/  01_foundations … 08_generative, 09_capstone (stubs to implement)
+├── solutions/  (mirrors exercises, complete implementations)
+├── tests/      test_00_stubs … test_09_capstone, test_impl_selector (+ conftest.py)
+├── guides/     00_start_here, 01_prereqs_math, 02_debugging
+├── readings/   per-section overviews + per-exercise digested notes + source links
+├── progress.py             (per-module PASS/FAIL tracker over your code)
+├── requirements.txt
+├── RESEARCH_LOG.md  (cumulative wrong-turns / learnings journal)
+└── README.md
+</code></pre></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

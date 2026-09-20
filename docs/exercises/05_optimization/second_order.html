@@ -1,0 +1,180 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 5.1 — Damped Newton + L-BFGS from scratch. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 5.1 — Damped Newton + L-BFGS from scratch.</h1><p class="meta">Reading: <a href="../../readings/05_optimization/second_order.html">readings/05_optimization/second_order.html</a> · Suite: <code>tests/test_05_optimization.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_05_optimization.py -q -k &quot;newton or lbfgs&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 5.1 — Damped Newton + L-BFGS from scratch.
+
+Goals: exact-Hessian damped Newton step via autograd; two-loop recursion;
+Armijo backtracking L-BFGS with (s, y) curvature pairs.
+
+Run: pytest tests/test_05_optimization.py -k &quot;newton or lbfgs&quot;
+Reading: readings/05_optimization/second_order.md
+&quot;&quot;&quot;
+
+import torch
+
+
+def lbfgs_direction(g: torch.Tensor, S: list, Y: list) -&gt; torch.Tensor:
+    # TODO: Two-loop recursion; return -H_k g (steepest descent if no history).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class DampedNewton:
+    &quot;&quot;&quot;Solve (H + l*I) d = g exactly; p -= lr*d. step() takes a loss closure.&quot;&quot;&quot;
+
+    def __init__(self, params, damping: float = 1e-3, lr: float = 1.0):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def zero_grad(self):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self, closure):
+        # TODO: grad + full Hessian via autograd, solve, update.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class LBFGS:
+    &quot;&quot;&quot;Limited-memory BFGS; closure() zeroes grads, forwards, backprops.&quot;&quot;&quot;
+
+    def __init__(self, params, memory: int = 10, c1: float = 1e-4):
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def step(self, closure):
+        # TODO: Direction + Armijo line search + curvature-pair update.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_damped_newton_one_step_quadratic</code></li><li><code>test_lbfgs_direction_empty_history_is_steepest</code></li><li><code>test_lbfgs_10_step_ill_conditioned_convergence</code></li><li><code>test_adaptive_10_step_convergence</code></li><li><code>test_adamw_decoupled_decay_exact</code></li><li><code>test_lion_first_step_is_signed</code></li><li><code>test_lookahead_sync_exact</code></li><li><code>test_sam_ascent_then_10_step_convergence</code></li><li><code>test_swa_average_exact</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Second-order optimization: damped Newton and L-BFGS from scratch.
+
+History: full Newton (1940s roots, 1980s NN revival) is infeasible at scale
+(O(n^3) solves, indefinite Hessians) -&gt; damping (Levenberg-Marquardt style)
+-&gt; quasi-Newton (BFGS, 1970) -&gt; limited-memory L-BFGS (1989) storing only
+recent (s, y) curvature pairs. These still matter: small scientific models,
+last-layer fine-tuning, and neural PDE solvers.
+&quot;&quot;&quot;
+
+import torch
+
+
+def _flatten(ts):
+    return torch.cat([t.reshape(-1) for t in ts])
+
+
+def _shapes(params):
+    return [p.shape for p in params]
+
+
+def _unflatten(vec, shapes):
+    out, i = [], 0
+    for s in shapes:
+        n = 1
+        for d in s:
+            n *= d
+        out.append(vec[i:i + n].reshape(s))
+        i += n
+    return out
+
+
+class DampedNewton:
+    &quot;&quot;&quot;One damped Newton step per call: solve (H + l*I) d = g, p -= lr*d.
+
+    `step(closure)` where closure() returns the loss. Hessian is built
+    exactly via autograd -- only viable for small problems (the point).
+    &quot;&quot;&quot;
+
+    def __init__(self, params, damping: float = 1e-3, lr: float = 1.0):
+        self.params = list(params)
+        self.damping, self.lr = float(damping), float(lr)
+        self.shapes = _shapes(self.params)
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def _set_flat(self, vec):
+        for p, v in zip(self.params, _unflatten(vec, self.shapes)):
+            p.copy_(v)
+
+    def step(self, closure):
+        self.zero_grad()
+        loss = closure()
+        g = torch.autograd.grad(loss, self.params, create_graph=True)
+        gf = _flatten(g)
+        n = gf.numel()
+        rows = []
+        for i in range(n):
+            gi = torch.autograd.grad(gf[i], self.params, retain_graph=(i &lt; n - 1))
+            rows.append(_flatten(gi).detach())
+        H = torch.stack(rows)
+        d = torch.linalg.solve(H + self.damping * torch.eye(n), gf.detach())
+        self._set_flat(_flatten(self.params).detach() - self.lr * d)
+        return loss
+
+
+def lbfgs_direction(g: torch.Tensor, S: list, Y: list) -&gt; torch.Tensor:
+    &quot;&quot;&quot;L-BFGS two-loop recursion; returns the descent direction (-H_k g).&quot;&quot;&quot;
+    q = g.clone()
+    alphas, rhos = [], []
+    for s, y in zip(reversed(S), reversed(Y)):
+        rho = 1.0 / float(y @ s)
+        rhos.append(rho)
+        a = rho * float(s @ q)
+        alphas.append(a)
+        q = q - a * y
+    r = q  # H_0 = I
+    for s, y, a, rho in zip(S, Y, reversed(alphas), reversed(rhos)):
+        beta = rho * float(y @ r)
+        r = r + s * (a - beta)
+    return -r
+
+
+class LBFGS:
+    &quot;&quot;&quot;Limited-memory BFGS with Armijo backtracking.
+
+    `step(closure)` where closure() zeroes grads, forwards, backprops, and
+    returns the loss (same protocol as torch.optim.LBFGS).
+    &quot;&quot;&quot;
+
+    def __init__(self, params, memory: int = 10, c1: float = 1e-4):
+        self.params = list(params)
+        self.memory, self.c1 = int(memory), float(c1)
+        self.shapes = _shapes(self.params)
+        self.S: list = []
+        self.Y: list = []
+
+    def zero_grad(self):
+        for p in self.params:
+            if p.grad is not None:
+                p.grad.detach_()
+                p.grad.zero_()
+
+    @torch.no_grad()
+    def _set_flat(self, vec):
+        for p, v in zip(self.params, _unflatten(vec, self.shapes)):
+            p.copy_(v)
+
+    def step(self, closure):
+        prev_loss = closure()
+        g = _flatten([p.grad for p in self.params]).detach()
+        d = lbfgs_direction(g, self.S, self.Y)
+        x = _flatten(self.params).detach()
+        gtd = float(g @ d)
+        t, loss, accepted = 1.0, prev_loss, False
+        for _ in range(25):
+            self._set_flat(x + t * d)
+            loss = closure()
+            if float(loss.detach()) &lt;= float(prev_loss.detach()) + self.c1 * t * gtd:
+                accepted = True
+                break
+            t *= 0.5
+        if not accepted:  # fall back: stay, keep old curvature info
+            self._set_flat(x)
+            return closure()
+        g_new = _flatten([p.grad for p in self.params]).detach()
+        s, y = t * d, g_new - g
+        if float(y @ s) &gt; 1e-10:
+            self.S.append(s)
+            self.Y.append(y)
+            self.S, self.Y = self.S[-self.memory:], self.Y[-self.memory:]
+        return loss
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

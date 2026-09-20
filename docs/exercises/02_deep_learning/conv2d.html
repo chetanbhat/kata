@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 2.3 — Manual Conv2D via unfold + matmul. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 2.3 — Manual Conv2D via unfold + matmul.</h1><p class="meta">Reading: <a href="../../readings/02_deep_learning/conv2d.html">readings/02_deep_learning/conv2d.html</a> · Suite: <code>tests/test_02_deep_learning.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_02_deep_learning.py -q -k &quot;conv&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 2.3 — Manual Conv2D via unfold + matmul.
+
+Goals: unfold input to patches, multiply by flattened kernels, reshape;
+support stride/padding/dilation; grads flow via torch autograd.
+
+Run: pytest tests/test_02_deep_learning.py -k conv
+Reading: readings/02_deep_learning/conv2d.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class Conv2D(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size,
+                 stride=1, padding=0, dilation=1):
+        super().__init__()
+        # TODO: Store conv hyperparams; create weight/bias parameters.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: F.unfold -&gt; matmul with flattened weight -&gt; reshape to (B,C,H,W).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_autograd_known_gradients</code></li><li><code>test_autograd_pow_div_exp_sigmoid_relu</code></li><li><code>test_autograd_10_step_scalar_descent</code></li><li><code>test_linear_shape_and_grad</code></li><li><code>test_linear_10_step_convergence</code></li><li><code>test_batchnorm_train_eval_and_stats</code></li><li><code>test_layernorm_normalizes</code></li><li><code>test_dropout_eval_identity_and_train_shape</code></li><li><code>test_conv2d_matches_nn_conv2d_and_shape</code></li><li><code>test_conv2d_dilation_shape_and_grad</code></li><li><code>test_conv2d_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Manual 2D convolution via unfold + matrix multiply.
+
+Forward: unfold input to patches, multiply by flattened kernels, fold back.
+Backward: free via torch autograd (all ops differentiable), so parameter
+grads flow. Handles stride / padding / dilation.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+
+class Conv2D(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size,
+                 stride=1, padding=0, dilation=1):
+        super().__init__()
+        kh, kw = (kernel_size, kernel_size) if isinstance(kernel_size, int) else kernel_size
+        self.stride = stride if isinstance(stride, tuple) else (stride, stride)
+        self.padding = padding if isinstance(padding, tuple) else (padding, padding)
+        self.dilation = dilation if isinstance(dilation, tuple) else (dilation, dilation)
+        self.weight = nn.Parameter(torch.empty(out_channels, in_channels, kh, kw))
+        self.bias = nn.Parameter(torch.zeros(out_channels))
+        nn.init.kaiming_uniform_(self.weight, a=5 ** 0.5)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        B, _, H, W = x.shape
+        kh, kw = self.weight.shape[2], self.weight.shape[3]
+        patches = F.unfold(x, (kh, kw), dilation=self.dilation,
+                           padding=self.padding, stride=self.stride)  # (B, C*kh*kw, L)
+        out = self.weight.view(self.weight.shape[0], -1) @ patches + self.bias.view(-1, 1)
+        h_out = (H + 2 * self.padding[0] - self.dilation[0] * (kh - 1) - 1) // self.stride[0] + 1
+        w_out = (W + 2 * self.padding[1] - self.dilation[1] * (kw - 1) - 1) // self.stride[1] + 1
+        return out.view(B, -1, h_out, w_out)
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

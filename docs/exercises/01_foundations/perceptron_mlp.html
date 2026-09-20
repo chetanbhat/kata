@@ -1,0 +1,277 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.2 — Perceptron &amp; MLP with manual gradients (NumPy only). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 1.2 — Perceptron &amp; MLP with manual gradients (NumPy only).</h1><p class="meta">Reading: <a href="../../readings/01_foundations/perceptron_mlp.html">readings/01_foundations/perceptron_mlp.html</a> · Suite: <code>tests/test_01_foundations.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_01_foundations.py -q -k &quot;perceptron or mlp or activation or numerical&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 1.2 — Perceptron &amp; MLP with manual gradients (NumPy only).
+
+Prereqs: guides/01_prereqs_math.md §1–2 (matmul shapes, chain rule).
+Intuition: an MLP is alternating linear maps and fixed nonlinearities; the
+loss depends on early weights only *through* later layers, so gradients flow
+backwards reusing cached intermediate values. No autograd — you are autograd.
+
+Worked micro-example (do this on paper first):
+  X = [[2.0]], y = [[4.0]], one hidden unit, ReLU, W1 = [[3.0]], W2 = [[1.0]].
+  Forward: Z1 = 6, A1 = 6, out = 6, L = (6-4)^2 = 4.
+  Backward: dL/dout = 2(6-4) = 4; dW2 = A1 * 4 = 24; dA1 = W2 * 4 = 4;
+            dZ1 = dA1 * ReLU&#x27;(6) = 4; dW1 = X * dZ1 = 8.
+  If you can reproduce dW1 = 8, dW2 = 24, you understand backprop.
+
+Shape diagram (memorize this; every layer_tp does the same dance):
+  A_prev: (B, d_in) @ W: (d_in, d_out) + b: (d_out,) -&gt; Z: (B, d_out)
+
+Run: pytest tests/test_01_foundations.py -k &quot;perceptron or mlp or activation&quot;
+Reading: readings/01_foundations/perceptron_mlp.md
+&quot;&quot;&quot;
+
+import numpy as np
+
+
+def relu(z):
+    # TODO: Elementwise max(0, z). HINT: np.maximum.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def relu_deriv(z):
+    # TODO: 1 where z &gt; 0 else 0. HINT: boolean mask .astype(float).
+    # NOTE: undefined at exactly 0; the convention (z &gt; 0) is standard.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def sigmoid(z):
+    # TODO: 1 / (1 + exp(-z)). HINT: clip z to [-500, 500] first.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def sigmoid_deriv(z):
+    # TODO: s * (1 - s) where s = sigmoid(z). Derive it once on paper!
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def tanh(z):
+    # TODO: np.tanh. HINT: this one is given away; check the pattern.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def tanh_deriv(z):
+    # TODO: 1 - tanh(z)^2. HINT: same trick as sigmoid_deriv.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gelu(z):
+    # TODO: Tanh approximation 0.5x(1+tanh(c(x+0.044715x^3))), c=sqrt(2/pi).
+    # HINT: get relu+sigmoid+tanh passing first; come back to this last.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gelu_deriv(z):
+    # TODO: Chain rule through the approximation. Let u = c(x + 0.044715x^3):
+    #   d/dx [0.5x(1+tanh(u))] = 0.5(1+tanh(u)) + 0.5x(1-tanh^2(u)) du/dx.
+    # The test checks you against finite differences, so algebra errors show
+    # up immediately — trust it over your own re-derivation.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class Perceptron:
+    &quot;&quot;&quot;Single-layer perceptron for binary labels in {0, 1}.&quot;&quot;&quot;
+
+    def __init__(self, n_features: int, lr: float = 0.1, seed: int = 0):
+        rng = np.random.default_rng(seed)
+        self.w = rng.normal(0, 0.01, size=n_features)
+        self.b = 0.0
+        self.lr = float(lr)
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        # TODO: Threshold the linear score at 0. One line.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 100) -&gt; &quot;Perceptron&quot;:
+        # TODO: Rosenblatt rule. Per epoch: err = y - predict(X) (in {-1,0,1});
+        #   w += lr * (err @ X); b += lr * sum(err). Break early if no errors.
+        # HINT: err @ X sums mistake vectors with their signs automatically.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class MLP:
+    &quot;&quot;&quot;Fully-connected network; hidden activations + linear output, MSE loss.
+
+    Build it in this order (each step is independently testable):
+      Step 1 (__init__): He-scale hidden Ws (N(0, sqrt(2/fan_in))), fan-in
+        scale for the output layer, zero biases. Wrong scale = dead or
+        exploding activations; print A.std() if training stalls.
+      Step 2 (forward): loop layers, cache (Z, A_prev) per layer, apply the
+        hidden activation from ACTIVATIONS, keep the last layer linear.
+      Step 3 (fit, output grad): dA = 2(out - y) / out.size (mean-MSE grad).
+      Step 4 (fit, backward loop): from last layer to first —
+        dZ = dA (output) or dA * act_deriv(Z) (hidden);
+        dW = A_prev.T @ dZ;  dB = sum(dZ, axis=0);  dA = dZ @ W.T;
+        then W -= lr*dW, B -= lr*dB.
+      Step 5: run the suite; if loss rises, halve lr twice before suspecting
+        the math (guides/02_debugging.md, Story 4).
+    &quot;&quot;&quot;
+
+    def __init__(self, layer_dims: list[int], activations=&quot;relu&quot;,
+                 lr: float = 0.1, seed: int = 0):
+        # TODO (Step 1): see class docstring. Accept a single string or one
+        # activation per hidden layer; store self.W / self.B / self.names.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, X: np.ndarray):
+        # TODO (Step 2): return (output, caches), caches = [(Z, A_prev)].
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        # TODO: One line via forward (ignore the caches).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 100) -&gt; list[float]:
+        # TODO (Steps 3-4): per epoch, record mean-MSE BEFORE the update;
+        # return the loss history (history[-1] &lt; history[0] is the test).
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+# Registry of YOUR functions above (scaffolding, not the answer): referencing
+# them here does not call them, so this dict exists before you implement.
+ACTIVATIONS = {
+    &quot;relu&quot;: (relu, relu_deriv),
+    &quot;gelu&quot;: (gelu, gelu_deriv),
+    &quot;sigmoid&quot;: (sigmoid, sigmoid_deriv),
+    &quot;tanh&quot;: (tanh, tanh_deriv),
+}
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_ols_shape_and_weight_recovery</code></li><li><code>test_ridge_runs_and_scales_with_batch</code></li><li><code>test_logistic_shape_and_accuracy</code></li><li><code>test_logistic_10_step_convergence</code></li><li><code>test_stable_sigmoid_extremes</code></li><li><code>test_perceptron_separable_converges</code></li><li><code>test_mlp_10_step_convergence_and_shape</code></li><li><code>test_activation_values_and_vectorization</code></li><li><code>test_mlp_numerical_gradients_nonzero</code></li><li><code>test_mse_bce_known_values</code></li><li><code>test_losses_numerically_stable</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Perceptron and n-layer MLP with manual gradients (NumPy only).
+
+Math objectives:
+  - Perceptron: mistake-driven linear updates (Rosenblatt rule).
+  - MLP: forward caching + backprop via the chain rule with customizable
+    activations (ReLU, GeLU, Sigmoid, Tanh), full-batch gradient descent.
+&quot;&quot;&quot;
+
+import numpy as np
+
+_TANH_COEF = np.sqrt(2.0 / np.pi)
+
+
+def relu(z):
+    return np.maximum(0.0, z)
+
+
+def relu_deriv(z):
+    return (z &gt; 0).astype(float)
+
+
+def sigmoid(z):
+    return 1.0 / (1.0 + np.exp(-np.clip(z, -500, 500)))
+
+
+def sigmoid_deriv(z):
+    s = sigmoid(z)
+    return s * (1.0 - s)
+
+
+def tanh(z):
+    return np.tanh(z)
+
+
+def tanh_deriv(z):
+    return 1.0 - np.tanh(z) ** 2
+
+
+def gelu(z):
+    &quot;&quot;&quot;Tanh-approximated GeLU: 0.5x(1 + tanh(c(x + 0.044715x^3))).&quot;&quot;&quot;
+    z = np.asarray(z, dtype=float)
+    return 0.5 * z * (1.0 + np.tanh(_TANH_COEF * (z + 0.044715 * z ** 3)))
+
+
+def gelu_deriv(z):
+    z = np.asarray(z, dtype=float)
+    u = _TANH_COEF * (z + 0.044715 * z ** 3)
+    t = np.tanh(u)
+    du = _TANH_COEF * (1.0 + 3.0 * 0.044715 * z ** 2)
+    return 0.5 * (1.0 + t) + 0.5 * z * (1.0 - t ** 2) * du
+
+
+ACTIVATIONS = {
+    &quot;relu&quot;: (relu, relu_deriv),
+    &quot;gelu&quot;: (gelu, gelu_deriv),
+    &quot;sigmoid&quot;: (sigmoid, sigmoid_deriv),
+    &quot;tanh&quot;: (tanh, tanh_deriv),
+}
+
+
+class Perceptron:
+    &quot;&quot;&quot;Single-layer perceptron for binary labels in {0, 1}.&quot;&quot;&quot;
+
+    def __init__(self, n_features: int, lr: float = 0.1, seed: int = 0):
+        rng = np.random.default_rng(seed)
+        self.w = rng.normal(0, 0.01, size=n_features)
+        self.b = 0.0
+        self.lr = float(lr)
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        return (np.asarray(X, dtype=float) @ self.w + self.b &gt;= 0).astype(int)
+
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 100) -&gt; &quot;Perceptron&quot;:
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y).reshape(-1)
+        for _ in range(epochs):
+            pred = self.predict(X)
+            err = y - pred  # in {-1, 0, 1}
+            if not np.any(err):
+                break
+            # Vectorized Rosenblatt update summed over mistakes.
+            self.w += self.lr * (err @ X)
+            self.b += self.lr * float(np.sum(err))
+        return self
+
+
+class MLP:
+    &quot;&quot;&quot;Fully-connected network; hidden activations + linear output, MSE loss.&quot;&quot;&quot;
+
+    def __init__(self, layer_dims: list[int], activations: list[str] | str = &quot;relu&quot;,
+                 lr: float = 0.1, seed: int = 0):
+        if isinstance(activations, str):
+            activations = [activations] * (len(layer_dims) - 2)
+        assert len(activations) == len(layer_dims) - 2, &quot;one activation per hidden layer&quot;
+        rng = np.random.default_rng(seed)
+        self.lr = float(lr)
+        self.names = list(activations)
+        self.W: list[np.ndarray] = []
+        self.B: list[np.ndarray] = []
+        for i in range(len(layer_dims) - 1):
+            fan_in, fan_out = layer_dims[i], layer_dims[i + 1]
+            scale = np.sqrt(2.0 / fan_in) if i &lt; len(layer_dims) - 2 else np.sqrt(1.0 / fan_in)
+            self.W.append(rng.normal(0, scale, size=(fan_in, fan_out)))
+            self.B.append(np.zeros(fan_out))
+
+    def forward(self, X: np.ndarray):
+        &quot;&quot;&quot;Returns (output, caches) with caches = [(Z, A_prev)] per layer.&quot;&quot;&quot;
+        A = np.asarray(X, dtype=float)
+        caches = []
+        for i, (W, B) in enumerate(zip(self.W, self.B)):
+            Z = A @ W + B
+            caches.append((Z, A))
+            if i &lt; len(self.W) - 1:
+                A = ACTIVATIONS[self.names[i]][0](Z)
+            else:
+                A = Z
+        return A, caches
+
+    def predict(self, X: np.ndarray) -&gt; np.ndarray:
+        out, _ = self.forward(X)
+        return out
+
+    def fit(self, X: np.ndarray, y: np.ndarray, epochs: int = 100) -&gt; list[float]:
+        X = np.asarray(X, dtype=float)
+        y = np.asarray(y, dtype=float).reshape(X.shape[0], -1)
+        n = X.shape[0]
+        history = []
+        for _ in range(epochs):
+            out, caches = self.forward(X)
+            loss = float(np.mean((out - y) ** 2))
+            history.append(loss)
+            dA = 2.0 * (out - y) / out.size
+            for i in reversed(range(len(self.W))):
+                Z, A_prev = caches[i]
+                dZ = dA if i == len(self.W) - 1 else dA * ACTIVATIONS[self.names[i]][1](Z)
+                dW = A_prev.T @ dZ
+                dB = np.sum(dZ, axis=0)
+                dA = dZ @ self.W[i].T
+                self.W[i] -= self.lr * dW
+                self.B[i] -= self.lr * dB
+        return history
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

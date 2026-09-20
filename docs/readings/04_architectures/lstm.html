@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 4.2 — LSTM cell from raw tensor gates. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="42-lstm-cell-from-raw-gates">4.2 — LSTM Cell from Raw Gates</h1>
+<p><strong>Builds on:</strong> 1.2 (sigmoid/tanh by hand), 2.1 (every gate's backward is
+these patterns). <strong>Builds toward:</strong> 7.1 (GRU merges gates; vanishing probe
+quantifies <em>why</em> gates exist).</p>
+<h2 id="introduction">Introduction</h2>
+<p>RNNs fail at long memory because backprop multiplies the <em>same</em> recurrent
+Jacobian every step — norms shrink geometrically (Module 7 measures this).
+The LSTM's answer is an additive cell state: <code>c_t = f·c_{t−1} + i·g</code>. When
+the forget gate <code>f ≈ 1</code>, gradient flows back through time <em>unchanged</em> —
+a gradient highway with learned on/off ramps. Input gate <code>i</code> writes,
+output gate <code>o</code> reads (<code>h = o·tanh(c)</code>). The forget-bias-to-1 trick in the
+exercise is a real folk discovery: initialize remembering, learn to forget.</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>All four gates come from one fused matmul, <code>chunk</code>ed — one big GEMM
+  beats four small ones on GPUs (implementation detail with teeth).</li>
+<li><code>∂c_t/∂c_{t−1} = f_t</code> (elementwise): the network <em>controls its own
+  gradient decay</em>. Compare with Elman's fixed <code>W_hh</code> (Module 7).</li>
+<li>Candidate <code>g</code> is tanh (signed write); gates are sigmoid (0–1 valves).
+  Swapping them is the canonical beginner bug — shapes still match, which
+  is why the convergence test (not just shapes) matters.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Clamp <code>f = 1, i = 0</code> manually: the cell becomes perfect memory (<code>c</code>
+frozen). Your implementation should reproduce this in two lines — if not,
+the gate wiring is wrong.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Olah, "Understanding LSTM Networks" (best visual build-up) —
+  <a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/">colah.github.io/posts/2015-08-Understanding-LSTMs</a></li>
+<li>Recommended: Goodfellow et al., <em>Deep Learning</em>, §10.10 (gated RNNs) —
+  <a href="https://www.deeplearningbook.org">deeplearningbook.org</a></li>
+<li>Suggested: Greff et al., "LSTM: A Search Space Odyssey" (which parts
+  actually matter) — <a href="https://arxiv.org/abs/1503.04069">arxiv.org/abs/1503.04069</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/04_architectures/lstm.html">exercises/04_architectures/lstm.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

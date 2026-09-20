@@ -1,0 +1,108 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 6.2 — WeightNorm, SpectralNorm, Gradient Penalty. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 6.2 — WeightNorm, SpectralNorm, Gradient Penalty.</h1><p class="meta">Reading: <a href="../../readings/06_regularization/normalization.html">readings/06_regularization/normalization.html</a> · Suite: <code>tests/test_06_regularization.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_06_regularization.py -q -k &quot;weightnorm or spectral or penalty&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 6.2 — WeightNorm, SpectralNorm, Gradient Penalty.
+
+Goals: reparameterized row norms (||w_i|| must equal g_i exactly); power
+iteration matching SVD&#x27;s top singular value; GP exact on a linear critic.
+
+Run: pytest tests/test_06_regularization.py -k &quot;weightnorm or spectral or penalty or norm&quot;
+Reading: readings/06_regularization/normalization.md
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class WeightNormLinear(nn.Module):
+    &quot;&quot;&quot;w = g * v / ||v||.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__()
+        # TODO: g/v/bias params with direction init on v.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+class SpectralNormLinear(nn.Module):
+    &quot;&quot;&quot;Divide by sigma_max(W) via power iteration on buffer u.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int, n_power: int = 5):
+        super().__init__()
+        # TODO: weight/bias params + u buffer.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        # TODO: Implement this.
+        raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gradient_penalty(critic, real: torch.Tensor, fake: torch.Tensor) -&gt; torch.Tensor:
+    # TODO: mean((||grad interp||_2 - 1)^2) over random interpolations.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_dropconnect_eval_identity_and_train_scale</code></li><li><code>test_stochastic_depth_eval_and_shapes</code></li><li><code>test_label_smoothing_matches_ce_at_zero</code></li><li><code>test_mixup_endpoints_shapes_and_grad</code></li><li><code>test_weightnorm_row_norms_exact_and_convergence</code></li><li><code>test_spectral_norm_matches_svd</code></li><li><code>test_gradient_penalty_exact_on_linear_critic</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Normalization beyond BatchNorm: WeightNorm, SpectralNorm, GradientPenalty.
+
+History of wrong turns: BatchNorm&#x27;s &quot;internal covariate shift&quot; story (2015)
+did not survive scrutiny (Santurkar et al. 2018: it smooths the landscape).
+WeightNorm (2016) reparameterizes w = g*v/||v|| to decouple norm/direction.
+SpectralNorm (2018) divides by the top singular value (power iteration) to
+enforce 1-Lipschitz critics -- replacing WGAN&#x27;s weight clipping (2017),
+which underused capacity and was superseded by gradient penalty (2017).
+&quot;&quot;&quot;
+
+import torch
+import torch.nn as nn
+
+
+class WeightNormLinear(nn.Module):
+    &quot;&quot;&quot;w = g * v / ||v||: learnable per-row norm g, direction v.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__()
+        self.g = nn.Parameter(torch.ones(out_features))
+        self.v = nn.Parameter(torch.empty(out_features, in_features))
+        nn.init.kaiming_uniform_(self.v, a=5 ** 0.5)
+        self.bias = nn.Parameter(torch.zeros(out_features))
+
+    def weight(self) -&gt; torch.Tensor:
+        return self.g[:, None] * self.v / self.v.norm(dim=1, keepdim=True).clamp_min(1e-12)
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        return x @ self.weight().t() + self.bias
+
+
+class SpectralNormLinear(nn.Module):
+    &quot;&quot;&quot;W_sn = W / sigma_max(W); sigma estimated by power iteration on buffer u.&quot;&quot;&quot;
+
+    def __init__(self, in_features: int, out_features: int, n_power: int = 5):
+        super().__init__()
+        self.n_power = int(n_power)
+        self.weight = nn.Parameter(torch.empty(out_features, in_features))
+        nn.init.kaiming_uniform_(self.weight, a=5 ** 0.5)
+        self.bias = nn.Parameter(torch.zeros(out_features))
+        self.register_buffer(&quot;u&quot;, torch.randn(out_features))
+
+    def sigma(self) -&gt; torch.Tensor:
+        u = self.u / self.u.norm().clamp_min(1e-12)
+        with torch.no_grad():
+            for _ in range(self.n_power if self.training else 1):
+                v = (self.weight.t() @ u)
+                v = v / v.norm().clamp_min(1e-12)
+                u = (self.weight @ v)
+                u = u / u.norm().clamp_min(1e-12)
+            if self.training:
+                self.u.copy_(u)
+        return u @ self.weight @ v
+
+    def forward(self, x: torch.Tensor) -&gt; torch.Tensor:
+        return x @ (self.weight / self.sigma().clamp_min(1e-12)).t() + self.bias
+
+
+def gradient_penalty(critic, real: torch.Tensor, fake: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;WGAN-GP penalty: mean ((||grad_x C(interp)||_2 - 1)^2).&quot;&quot;&quot;
+    alpha = torch.rand(real.shape[0], *([1] * (real.dim() - 1)), device=real.device)
+    interp = (alpha * real + (1.0 - alpha) * fake).requires_grad_(True)
+    scores = critic(interp).sum()
+    grads = torch.autograd.grad(scores, interp, create_graph=True)[0]
+    return ((grads.flatten(1).norm(2, dim=1) - 1.0) ** 2).mean()
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

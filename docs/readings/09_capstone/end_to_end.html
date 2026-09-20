@@ -1,0 +1,42 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 9 — Capstone: two-moons classification end to end. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="9-capstone-two-moons-end-to-end">9 — Capstone: Two-Moons End to End</h1>
+<p><strong>Builds on:</strong> everything, especially 1.x (losses), 2.2 (MLP), 3.3 (loop
+pattern), guides §2 (curves). <strong>Builds toward:</strong> independent projects —
+swap moons for sklearn digits, then CIFAR, keeping this harness.</p>
+<h2 id="introduction">Introduction</h2>
+<p>Exercises 1–8 are scales; this is the recital. The pipeline order is load-
+bearing: <strong>split first</strong> (shuffled, disjoint, covering — indices returned
+so you can <em>prove</em> it), <strong>fit preprocessing on train only</strong> (pooled stats
+leak test information into training; the test compares your scaler's mean
+against both), <strong>monitor val while training</strong> (curves, not vibes),
+<strong>early-stop + checkpoint the best</strong> (the checkpoint <em>is</em> a regularizer),
+<strong>evaluate test once</strong> (test-set continence — every re-peek invalidates
+it). The width experiment (8 vs 32 vs 128) picks by <em>val</em>, reports test —
+model selection done right, in miniature.</p>
+<h2 id="the-craft-that-matters">The craft that matters</h2>
+<ul>
+<li>Overfit deliberately first (small noisy set, big net): train ≫ val gap
+  <em>diagnoses</em> capacity. Can't overfit 4 samples? Optimization is broken
+  (guides §2, Story 4) — don't touch regularization yet.</li>
+<li>Early stopping needs a task that bottoms out: on clean moons val keeps
+  improving (nothing to stop); on small+noisy it degrades (patience fires).
+  The test uses both regimes — know which yours is in.</li>
+<li>Checkpoint reload equality (<code>argmax</code> predictions identical) is the
+  minimum reproducibility contract. PNG curves exist so future-you can
+  <em>see</em> what happened without rerunning.</li>
+<li>dtype discipline: scaler emits float32 into a float32 model (a real
+  pipeline bug this exercise already caught once — Double vs Float matmul).</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Before running: predict which width wins val and by how much. After: if
+128 wins <em>test</em> too, say why (smooth boundary, enough data); if 8 wins,
+say why (noise punishes capacity). Wrong predictions beat no predictions —
+calibration is the skill.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Karpathy, "A Recipe for Training Neural Networks" —
+  <a href="https://karpathy.github.io/2019/04/25/recipe/">karpathy.github.io/2019/04/25/recipe</a></li>
+<li>Recommended: ESL Ch. 7 (assessment &amp; selection) —
+  <a href="https://web.stanford.edu/~hastie/ElemStatLearn/">web.stanford.edu/~hastie/ElemStatLearn</a></li>
+<li>Suggested: Prechelt, "Early Stopping — But When?" —
+  <a href="https://arxiv.org/abs/1206.5533">arxiv.org/abs/1206.5533</a></li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/09_capstone/end_to_end.html">exercises/09_capstone/end_to_end.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

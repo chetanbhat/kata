@@ -1,5 +1,9 @@
 # Kata — Test-Driven ML Practice Workspace
 
+Browse everything (guides, readings, exercises, reference) at
+**[chetanbhat.github.io/kata](https://chetanbhat.github.io/kata/)** —
+code runs locally; each exercise page shows the one command that validates it.
+
 Build ML from raw math to modern architectures through code. Every exercise
 has a stub (`exercises/`), a reference implementation (`solutions/`), and a
 pytest suite (`tests/`) enforcing three invariants:
@@ -112,10 +116,21 @@ running notes live in [RESEARCH_LOG.md](RESEARCH_LOG.md).
 | 8.2 | `exercises/08_generative/gan.py` | Minimax → non-saturating; WGAN-GP; spectral-normed D | `pytest tests/test_08_generative.py -k "gan or wgan or spectral_normalize"` |
 | 8.3 | `exercises/08_generative/diffusion.py` | Linear vs cosine schedule; DDPM vs DDIM; classifier-free guidance | `pytest tests/test_08_generative.py -k "diffusion or ddpm or ddim or guidance"` |
 
+## Static site (`docs/`)
+
+`docs/` is pre-built HTML served by GitHub Pages — no backend, no JS
+frameworks, no external assets. Rebuild after editing content:
+
+```bash
+.venv/bin/python site/build.py   # regenerates docs/ (73 pages)
+```
+
 ## Layout
 
 ```text
 kata/
+├── docs/       pre-built static site (GitHub Pages serves /docs)
+├── site/build.py  generator (needs `pip install markdown`, build-time only)
 ├── exercises/  01_foundations … 08_generative, 09_capstone (stubs to implement)
 ├── solutions/  (mirrors exercises, complete implementations)
 ├── tests/      test_00_stubs … test_09_capstone, test_impl_selector (+ conftest.py)

@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 1.2 — Perceptron &amp; MLP with manual gradients (NumPy only). · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1 id="12-perceptron-mlp-manual-backprop">1.2 — Perceptron &amp; MLP (manual backprop)</h1>
+<p><strong>Builds on:</strong> 1.1 (linear units, sigmoid), guides/01 §2 (chain rule).
+<strong>Builds toward:</strong> 2.1 (autograd mechanizes this file), 4.2/4.3 (gates and
+attention reuse these exact backward patterns).</p>
+<h2 id="introduction">Introduction</h2>
+<p>The perceptron (Rosenblatt, 1958) learns only what a hyperplane can
+express — Minsky &amp; Papert's XOR critique killed it in 1969. The MLP
+answers by stacking: linear → nonlinearity → linear. Depth buys
+<em>compositional</em> expressivity (each layer builds features from the last),
+and backprop (1986) buys a training procedure. The stub walks you through
+both in five ordered steps with a hand-checkable micro-example
+(<code>dW1 = 8, dW2 = 24</code> — reproduce it before coding).</p>
+<h2 id="the-math-that-matters">The math that matters</h2>
+<ul>
+<li>Forward cache per layer: <code>(Z, A_prev)</code>. Memory for speed — the defining
+  trade of backprop (revisited as gradient checkpointing in large models).</li>
+<li>Output grad for mean-MSE: <code>dA = 2(out − y)/N</code>. Hidden: <code>dZ = dA·φ'(Z)</code>;
+  <code>dW = A_prev'·dZ</code>; <code>dB = ΣdZ</code>; <code>dA = dZ·W'</code>. Learn this loop cold.</li>
+<li>Init scale matters: He <code>√(2/fan_in)</code> keeps ReLU variances stable;
+  too-large init saturates sigmoids on step one (dead network, Story 3).</li>
+<li>GeLU is smooth ReLU (<code>x·Φ(x)</code>); its tanh approximation exists because
+  <code>erf</code> was historically expensive — know <em>why</em> the formula looks odd.</li>
+</ul>
+<h2 id="intuition-check">Intuition check</h2>
+<p>Perturb one weight by <code>1e-5</code>: if the loss doesn't move, that parameter is
+decorative. The test suite's finite-difference probe is this habit,
+automated.</p>
+<h2 id="readings">Readings</h2>
+<ul>
+<li>Required: Goodfellow et al., <em>Deep Learning</em>, Ch. 6 (MLPs) —
+  <a href="https://www.deeplearningbook.org/contents/mlp.html">deeplearningbook.org/contents/mlp.html</a></li>
+<li>Recommended: Karpathy, "Zero to Hero" lecture 1 + micrograd build —
+  <a href="https://github.com/karpathy/nn-zero-to-hero">github.com/karpathy/nn-zero-to-hero</a></li>
+<li>Suggested: Rumelhart, Hinton &amp; Williams (1986), "Learning representations
+  by back-propagating errors," <em>Nature</em> (the paper that restarted the field).</li>
+</ul><p class="meta">Exercise stub: <a href="../../exercises/01_foundations/perceptron_mlp.html">exercises/01_foundations/perceptron_mlp.py</a></p></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>

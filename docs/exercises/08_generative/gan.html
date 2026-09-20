@@ -1,0 +1,98 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>EXERCISE 8.2 — GAN losses: minimax vs non-saturating vs WGAN-GP + SN. · ML Kata</title><link rel="stylesheet" href="../../style.css"></head><body><nav class="top"><a href="../../index.html">Kata</a><a href="../../guides/00_start_here.html">Guides</a><a href="../../readings.html">Readings</a><a href="../../exercises.html">Exercises</a><a href="../../RESEARCH_LOG.html">Research log</a></nav><main><h1>EXERCISE 8.2 — GAN losses: minimax vs non-saturating vs WGAN-GP + SN.</h1><p class="meta">Reading: <a href="../../readings/08_generative/gan.html">readings/08_generative/gan.html</a> · Suite: <code>tests/test_08_generative.py</code></p><p>Solve the stub, then validate with one command (runs <em>your</em> code):</p><div class="cmd"><span class="prompt">$</span> .venv/bin/python -m pytest tests/test_08_generative.py -q -k &quot;gan or wgan or spectral_normalize&quot;</div><h2>Stub</h2><pre><code>&quot;&quot;&quot;EXERCISE 8.2 — GAN losses: minimax vs non-saturating vs WGAN-GP + SN.
+
+Goals: each loss as a pure function with exact hand-checkable values;
+gradient penalty exact on a linear critic; power iteration matching SVD.
+
+Run: pytest tests/test_08_generative.py -k &quot;gan or wgan or spectral_normalize or penalty&quot;
+Reading: readings/08_generative/gan.md
+&quot;&quot;&quot;
+
+import torch
+
+
+def gan_d_loss(real_logits: torch.Tensor, fake_logits: torch.Tensor):
+    # TODO: -(log D(x) + log(1 - D(G(z)))).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gan_g_loss_minimax(fake_logits: torch.Tensor):
+    # TODO: Saturating original: log(1 - D(G(z))).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gan_g_loss_nonsaturating(fake_logits: torch.Tensor):
+    # TODO: Practical fix: -log D(G(z)).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def gradient_penalty(critic, real: torch.Tensor, fake: torch.Tensor):
+    # TODO: mean((||grad||_2 - 1)^2) on random interpolations.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def wgan_gp_d_loss(critic, real, fake, lam=10.0):
+    # TODO: E[fake] - E[real] + lam * GP.
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+
+
+def spectral_normalize(weight: torch.Tensor, u: torch.Tensor, steps: int = 5):
+    # TODO: Power iteration; return (W/sigma, updated u, sigma).
+    raise NotImplementedError(&quot;# TODO: Implement this&quot;)
+</code></pre><h2>Suite checks</h2><ul class="checks"><li><code>test_kl_normal_closed_form</code></li><li><code>test_reparameterize_shape_and_grad_path</code></li><li><code>test_vae_beta_zero_kills_kl_and_elbo_converges</code></li><li><code>test_gan_losses_exact_and_directional</code></li><li><code>test_wgan_gp_components_exact</code></li><li><code>test_spectral_normalize_matches_svd</code></li><li><code>test_discriminator_10_step_convergence</code></li><li><code>test_beta_schedules_shapes_and_ranges</code></li><li><code>test_q_sample_exact_spot_check</code></li><li><code>test_ddpm_ddim_shapes_and_determinism</code></li><li><code>test_cfg_endpoints_and_mixing_exact</code></li><li><code>test_epsilon_predictor_10_step_convergence</code></li></ul><details class="solution"><summary>Reference solution (open after your version passes)</summary><div class="body"><pre><code>&quot;&quot;&quot;Generative history II: GANs (2014) -- minimax, non-saturating, WGAN-GP.
+
+History of wrong turns: the minimax generator loss saturates early (log(1-D)
+flat when D is confident) -&gt; non-saturating -log D(G) (same paper, pragmatic
+fix). Mode collapse -&gt; WGAN (2017) replaces JS with Wasserstein + weight
+clipping (crude: cripples capacity) -&gt; WGAN-GP (2017) penalizes gradient
+norms instead. SpectralNorm discriminators (2018, cf. module 06) stabilize
+further. This file keeps every variant as pure loss functions + a small SN
+helper so each is exactly testable.
+&quot;&quot;&quot;
+
+import torch
+import torch.nn.functional as F
+
+
+def gan_d_loss(real_logits: torch.Tensor, fake_logits: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Minimax discriminator loss: -(log D(x) + log(1 - D(G(z)))).&quot;&quot;&quot;
+    return -(F.logsigmoid(real_logits) + F.logsigmoid(-fake_logits)).mean()
+
+
+def gan_g_loss_minimax(fake_logits: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Original saturating generator loss: log(1 - D(G(z))).&quot;&quot;&quot;
+    return F.logsigmoid(-fake_logits).mean()
+
+
+def gan_g_loss_nonsaturating(fake_logits: torch.Tensor) -&gt; torch.Tensor:
+    &quot;&quot;&quot;Practical fix: maximize log D(G(z)) instead.&quot;&quot;&quot;
+    return -F.logsigmoid(fake_logits).mean()
+
+
+def gradient_penalty(critic, real: torch.Tensor, fake: torch.Tensor) -&gt; torch.Tensor:
+    interp = real + torch.rand_like(real) * (fake - real)
+    interp.requires_grad_(True)
+    scores = critic(interp).sum()
+    grads = torch.autograd.grad(scores, interp, create_graph=True)[0]
+    return ((grads.flatten(1).norm(2, dim=1) - 1.0) ** 2).mean()
+
+
+def wgan_gp_d_loss(critic, real: torch.Tensor, fake: torch.Tensor,
+                   lam: float = 10.0) -&gt; torch.Tensor:
+    return critic(fake).mean() - critic(real).mean() + lam * gradient_penalty(critic, real, fake)
+
+
+def wgan_g_loss(fake_scores: torch.Tensor) -&gt; torch.Tensor:
+    return -fake_scores.mean()
+
+
+def spectral_normalize(weight: torch.Tensor, u: torch.Tensor, steps: int = 5):
+    &quot;&quot;&quot;Power iteration; returns (W/sigma, updated u, sigma).&quot;&quot;&quot;
+    with torch.no_grad():
+        for _ in range(steps):
+            v = (weight.t() @ u)
+            v = v / v.norm().clamp_min(1e-12)
+            u = (weight @ v)
+            u = u / u.norm().clamp_min(1e-12)
+    sigma = (u @ weight @ v).detach()
+    return weight / sigma.clamp_min(1e-12), u, sigma
+</code></pre></div></details></main><footer>Validate locally after solving: <code>.venv/bin/python -m pytest tests/ -q</code> (your code) · <code>.venv/bin/python progress.py</code> (tracker). MIT licensed.</footer></body></html>
